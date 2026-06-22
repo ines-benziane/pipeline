@@ -1,0 +1,9 @@
+[submodule "from-DW-to-MR"]
+	path = from-DW-to-MR
+	url = https://github.com/ines-benziane/from-DW-to-MR.git
+[submodule "medical_report"]
+	path = medical_report
+	url = https://github.com/ines-benziane/from-DW-to-MR.git
+[submodule "dicom"]
+	path = dicom
+	url = https://github.com/ines-benziane/dicom_client_v3.git
