@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myo-pipeline"
+version = "0.1.0"
+description = "Pipeline IRM — PACS to medical report orchestration (runner + methods)"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Inès Benziane", email = "i.benziane@institut-myologie.org" },
+]
+classifiers = ["Private :: Do Not Upload"]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["runner*", "methods*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["dicom", "medical_report", ".git"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+include = ["runner/**", "methods/**", "tests/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
