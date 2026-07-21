@@ -142,6 +142,7 @@ La station est partagée. Un calcul lourd lancé par une autre équipe peut rend
 - Où est l'espace disque dédié, quelle capacité, qui y a accès, est-il sauvegardé ?
 - Existe-t-il un ordonnanceur de travaux sur la station ?
 - D'autres outils sont-ils déjà déployés sur cette machine, et selon quelle procédure ? *(S'aligner sur un précédent coûte moins cher que d'imposer une approche nouvelle.)*
+- WeasyPrint impose des dépendances système (GTK / Pango / Cairo) sur la station de calcul ; à valider avec l'IT avant déploiement.
 
 ---
 

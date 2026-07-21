@@ -14,5 +14,5 @@ class Method (ABC):
     comparability_criteria : list
 
     @abstractmethod
-    def run(self, exam_dir, workdir):
+    def run(self, exam_dir, workdir, segment):
         ...

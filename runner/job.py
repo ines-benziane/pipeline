@@ -14,6 +14,7 @@ class JobState(Enum):
 class Job:
     job_id: str
     exam_id: str
+    segment: str
     method_id: str
     state: JobState = JobState.PENDING
     workdir: Path | None = None

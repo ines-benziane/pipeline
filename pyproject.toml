@@ -12,7 +12,13 @@ authors = [
     { name = "Inès Benziane", email = "i.benziane@institut-myologie.org" },
 ]
 classifiers = ["Private :: Do Not Upload"]
-dependencies = []
+dependencies = [
+    "jinja2",
+    "weasyprint",
+    "cmcrameri",
+    "pydantic",
+    "pyyaml",
+]
 
 [project.optional-dependencies]
 dev = [

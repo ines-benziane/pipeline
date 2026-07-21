@@ -1,18 +1,36 @@
+import json
+from pathlib import Path
+
 from runner.method import Method, Result
 
+FIXTURE = Path(__file__).parent.parent / "tests" / "fixtures" / "exam_sample.json"
 
 class DummyMethod(Method):
     name = "dummy"
     version = "1.1"
     comparability_criteria = []
 
-    def run(self, exam_dir, workdir):
+    def run(self, exam_dir, workdir, segment):
+        data = json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+        for field in ("patient_name", "birth_date", "referring_doctor"):
+            data["metadata"].pop(field, None)
+
+        data["metadata"]["segment"] = segment
+
+        meta = data["metadata"]
+        filename = (
+            f"{meta['patient_id']}_{meta['exam_date']}_{meta['segment']}"
+            f"_{meta['method']}_{meta['version']}_{meta['acquisition']}.json"
+        )
+        output = Path(workdir) / filename
+        output.write_text(json.dumps(data), encoding="utf-8")
         return Result(
-            results={"ok": True},
+            results=output,
             auto_valid=True,
             provenance = {"name": self.name, "version": self.version})
     
 if __name__ == "__main__":
     dummy = DummyMethod()
-    result = dummy.run("bidon", "bidule")
+    result = dummy.run("bidon", "bidule", "legs")
     print(result)

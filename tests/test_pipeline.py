@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from methods.dummy import DummyMethod
@@ -12,8 +14,14 @@ class NotAutoValidMethod(Method):
     version = "0"
     comparability_criteria = []
 
-    def run(self, exam_dir, workdir):
-        return Result(results={}, auto_valid=False, provenance={"name": self.name})
+    def run(self, exam_dir, workdir, segment):
+        output = Path(workdir) / "not_auto_valid.json"
+        output.write_text("{}", encoding="utf-8")
+        return Result(
+            results=output,
+            auto_valid=False,
+            provenance={"name": self.name},
+        )
 
 
 def test_registry_raises_on_unknown_method():
@@ -39,13 +47,13 @@ def test_method_without_run_is_rejected():
 
 def test_job_reaches_completed():
     methods_registry.register(DummyMethod)
-    job = Job(job_id="test001", exam_id="exam_test", method_id="dummy")
+    job = Job(job_id="test001", exam_id="exam_test", segment="legs", method_id="dummy")
     run_pipeline(job)
     assert job.state is JobState.COMPLETED
 
 
 def test_job_reaches_suspended():
     methods_registry.register(NotAutoValidMethod)
-    job = Job(job_id="test002", exam_id="exam_test", method_id="not_auto_valid")
+    job = Job(job_id="test002", exam_id="exam_test", segment="legs", method_id="not_auto_valid")
     run_pipeline(job)
     assert job.state is JobState.SUSPENDED
