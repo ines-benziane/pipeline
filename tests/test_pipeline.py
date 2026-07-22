@@ -45,11 +45,11 @@ def test_method_without_run_is_rejected():
         IncompleteMethod()
 
 
-def test_job_reaches_completed():
+def test_job_reaches_results_ready():
     methods_registry.register(DummyMethod)
     job = Job(job_id="test001", exam_id="exam_test", segment="legs", method_id="dummy")
     run_pipeline(job)
-    assert job.state is JobState.COMPLETED
+    assert job.state is JobState.RESULTS_READY
 
 
 def test_job_reaches_suspended():

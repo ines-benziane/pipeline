@@ -9,19 +9,18 @@ pip install pyyaml
 
 ## Installation
 
-Ce que `pip install -e .` seul ne couvre pas :
+Le dépôt est un monorepo de plusieurs packages editables (`myo-pipeline` à la racine, `myo-medical-report` dans `medical_report/`, plus `bsplines`, un package local hors PyPI). setuptools n'a pas de mode "workspace" : un script d'installation enchaîne les étapes.
 
 1. **Environnement conda dédié** (à faire une fois) :
    ```
    conda create -n pipeline python=3.11
    conda activate pipeline
-   pip install -e ".[dev]"
    ```
-   depuis la racine du projet.
 
-2. **Dépendance hors PyPI — `bsplines`** : ce package n'est pas publié sur PyPI, c'est un package local embarqué dans le dépôt (`medical_report/tools/py-bspline`). Il s'installe séparément, depuis la racine du projet :
-   ```
-   pip install -e medical_report/tools/py-bspline
-   ```
+2. **Installation complète du workspace**, depuis la racine du projet :
+   - Linux : `./install.sh`
+   - Windows : `.\install.ps1`
+
+   Le script installe, dans l'ordre, `myo-pipeline` (avec les extras `dev`), `myo-medical-report`, puis `bsplines` — tous en editable. Il s'arrête immédiatement si une étape échoue.
 
 3. **Dépendances système — WeasyPrint** : WeasyPrint nécessite des bibliothèques système (GTK / Pango / Cairo) que pip n'installe pas. Sous Linux, ce sont des paquets système à prévoir lors du déploiement (ex. sur la station de calcul).

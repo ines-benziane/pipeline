@@ -10,3 +10,7 @@ def get(name):
         raise KeyError(f"Unknown method: {name}")
     method_class = _REGISTRY[name]
     return method_class()
+
+def list_methods():
+    """Return a copy of the registered methods"""
+    return dict(_REGISTRY)

@@ -18,6 +18,7 @@ dependencies = [
     "cmcrameri",
     "pydantic",
     "pyyaml",
+    "click",
 ]
 
 [project.optional-dependencies]
@@ -28,7 +29,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["runner*", "methods*"]
+include = ["runner*", "methods*", "cli*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -41,3 +42,6 @@ include = ["runner/**", "methods/**", "tests/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[project.scripts]
+pipeline = "cli.main:cli"
