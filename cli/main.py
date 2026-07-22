@@ -39,8 +39,24 @@ def run(exam_id, method, segment, dry_run):
     for seg in segments:
         job = Job(exam_id=exam_id, segment=seg, method_id=method)
         try:
-            run_pipeline(job)
+            run_job(job)
         except Exception as e:
             click.echo(f"{job.job_id}  {seg}  ÉCHEC: {e}", err=True)
             continue
         click.echo(f"{job.job_id}  {seg}  {job.state.value}")
+
+
+@cli.command()
+@click.option("--patient-id", required=True, help="Identifiant (pseudonyme) du patient.")
+@click.option("--data-dir", required=True, help="Dossier des résultats JSON (json_output).")
+@click.option("--output-dir", required=True, help="Dossier de sortie du rapport PDF.")
+@click.option("--lang", default="fr", help="Langue du rapport.")
+def report(patient_id, data_dir, output_dir, lang):
+    """Génère le rapport médical PDF d'un patient à partir des résultats déjà traités."""
+    generator = MedicalReportGenerator()
+    try:
+        pdf_path = generator.generate(patient_id, data_dir, output_dir, lang=lang)
+    except Exception as e:
+        click.echo(f"ÉCHEC: {e}", err=True)
+        sys.exit(1)
+    click.echo(str(pdf_path))

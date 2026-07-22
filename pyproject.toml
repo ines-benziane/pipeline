@@ -29,7 +29,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["runner*", "methods*", "cli*"]
+include = ["runner*", "methods*", "cli*", "adapters*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -38,7 +38,7 @@ norecursedirs = ["dicom", "medical_report", ".git"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-include = ["runner/**", "methods/**", "tests/**"]
+include = ["runner/**", "methods/**", "tests/**", "adapters/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
