@@ -1,7 +1,10 @@
+import sys
+
 import click
 
+from adapters.medical_report_generator import MedicalReportGenerator
 from runner.job import Job
-from runner.runner import run_pipeline
+from runner.runner import run_job
 from methods.dummy import DummyMethod
 from runner import methods_registry
 
