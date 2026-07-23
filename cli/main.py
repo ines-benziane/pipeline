@@ -3,10 +3,11 @@ import sys
 import click
 
 from adapters.medical_report_generator import MedicalReportGenerator
-from runner.job import Job
-from runner.runner import run_job
 from methods.dummy import DummyMethod
 from runner import methods_registry
+from runner.job import Job
+from runner.report_generator import ReportGenerationError
+from runner.runner import run_job
 
 methods_registry.register(DummyMethod)
 
@@ -24,7 +25,8 @@ def methods():
 @cli.command()
 @click.option("--exam-id", required=True, help="Identifiant de l'examen.")
 @click.option("--method", required=True, help="Nom de la méthode (voir: pipeline methods).")
-@click.option("--segment", multiple=True, help="Segment à traiter. Répétable. Défaut: legs et thighs.")
+@click.option("--segment", multiple=True,
+              help="Segment à traiter. Répétable. Défaut: legs et thighs.")
 @click.option("--dry-run", is_flag=True, help="Montre ce qui serait fait, sans rien créer.")
 def run(exam_id, method, segment, dry_run):
     """Lance un traitement sur un examen."""
@@ -56,7 +58,7 @@ def report(patient_id, data_dir, output_dir, lang):
     generator = MedicalReportGenerator()
     try:
         pdf_path = generator.generate(patient_id, data_dir, output_dir, lang=lang)
-    except Exception as e:
+    except ReportGenerationError as e:
         click.echo(f"ÉCHEC: {e}", err=True)
         sys.exit(1)
     click.echo(str(pdf_path))
