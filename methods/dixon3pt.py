@@ -4,8 +4,7 @@ from runner.method import Method
 from dicomstack import DicomStack, DICOM
 from mutools.fatwater.utils import make_mask, make_ffmap
 from mutools.fatwater.dixon import dixon_3pt
-from musegai.io import Image 
-from pathlib import Path
+from musegai.io import Image
 import numpy as np
 from musegai.api import run_model
 
@@ -63,25 +62,14 @@ class Dixon3ptMethod(Method) :
         mag_2 = abs(water_map - fat_map)
         mag_1 = np.nan_to_num(mag_1)
         mag_2 = np.nan_to_num(mag_2)
-        mag_2.transform = [v for row in mag_2.transform for v in row]
-        mag_1.transform = [v for row in mag_1.transform for v in row]
-        mag_2 = np.nan_to_num(mag_2)
-        mag_2.transform = [v for row in mag_2.transform for v in row]
-        mag_1.transform = [v for row in mag_1.transform for v in row]
-        # print(f"{type(volumes[0])} et {dir(volumes[0])}")
-        print(mag_1.spacing,  mag_1.origin, mag_1.transform)
-        
+
         transform_flat = [v for row in mag_1.transform for v in row]
         img_1 = Image(mag_1, transform=transform_flat)
         img_2 = Image(mag_2, transform=transform_flat)
-        #si probleme :
-        # img_1.save(Path(workdir) / "mag_1.mha")
-        # img_2.save(Path(workdir) / "mag_2.mha")
-        image=[(mag_1, mag_2)]
 
         model = MODEL_BY_SEGMENT[segment]
 
-        rois, labels = run_model(model=model, images=[(mag_1, mag_2)], side="LR")
+        rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
 
 if __name__ == "__main__":
     method = Dixon3ptMethod()
