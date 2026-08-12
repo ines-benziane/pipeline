@@ -43,7 +43,7 @@ dependencies = [
     # Pour changer de version : prendre le nouveau fichier .whl déposé sur le
     # partage concerné par l'auteur de mutools et mettre à jour la ligne visée.
     "MuTools @ file:///R:/Services/RMN/13_Outils/mutools/MuTools-2.6.dev14-cp312-cp312-win_amd64.whl ; sys_platform == 'win32'",
-    "MuTools @ file:///mnt/rmn_files/Outils/mutools/MuTools-2.6.dev15-cp312-cp312-linux_x86_64.whl ; sys_platform == 'linux'",
+    "Mutools @ file:///mnt/rmn_files/Outils/mutools/mutools-2.6.dev16-cp312-cp312-linux_x86_64.whl ; sys_platform == 'linux'",
     "epgpy @ file:///R:/Services/RMN/13_Outils/mutools/epgpy-3.2.dev5-py3-none-any.whl ; sys_platform == 'win32'",
     "epgpy @ file:///mnt/rmn_files/Outils/mutools/epgpy-3.2.dev5-py3-none-any.whl ; sys_platform == 'linux'",
     "machines @ file:///R:/Services/RMN/13_Outils/mutools/machines-1.4.dev13-py3-none-any.whl ; sys_platform == 'win32'",

@@ -61,6 +61,13 @@ class Dixon3ptMethod(Method) :
         ffmap = make_ffmap(water_map, fat_map, mask=mask)
         mag_1 = abs(water_map + fat_map)
         mag_2 = abs(water_map - fat_map)
+        mag_1 = np.nan_to_num(mag_1)
+        mag_2 = np.nan_to_num(mag_2)
+        mag_2.transform = [v for row in mag_2.transform for v in row]
+        mag_1.transform = [v for row in mag_1.transform for v in row]
+        mag_2 = np.nan_to_num(mag_2)
+        mag_2.transform = [v for row in mag_2.transform for v in row]
+        mag_1.transform = [v for row in mag_1.transform for v in row]
         # print(f"{type(volumes[0])} et {dir(volumes[0])}")
         print(mag_1.spacing,  mag_1.origin, mag_1.transform)
         
