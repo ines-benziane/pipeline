@@ -17,10 +17,11 @@ class DummyMethod(Method):
             data["metadata"].pop(field, None)
 
         data["metadata"]["segment"] = segment
+        data["metadata"]["exam_id"] = exam_dir
 
         meta = data["metadata"]
         filename = (
-            f"{meta['patient_id']}_{meta['exam_date']}_{meta['segment']}"
+            f"{meta['exam_id']}_{meta['exam_date']}_{meta['segment']}"
             f"_{meta['method']}_{meta['version']}_{meta['acquisition']}.json"
         )
         output = Path(workdir) / filename

@@ -25,7 +25,7 @@ def run_job(job) :
         raise
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy(result.results, RESULT_DIR / result.results.name) #results given by method (ex json_output)
-    if result.auto_valid: 
+    if result.auto_valid: #not implemented yet 
         job.state = JobState.RESULTS_READY
     else : 
         job.state = JobState.SUSPENDED

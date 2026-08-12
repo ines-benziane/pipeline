@@ -21,25 +21,20 @@ Le pipeline traite des examens IRM : récupération DICOM, exécution d'une mét
 | Machine cible | Station de calcul existante, accès SSH, Linux | Ouvert |
 | Accès au PACS (Télémis) depuis la station | Oui, joignable sur le réseau | **Confirmé** |
 | Processus permanent (service) | Autorisé, sous réserve de coordination sur la charge | **Confirmé** |
-| Gestion des environnements | conda disponible, droits utilisateur suffisants | **Confirmé** |
-| Version de Python | Libre (fixée par l'environnement conda) → `>=3.11` retenu | **Confirmé** |
 | Environnement de développement | Poste Windows | Confirmé |
 | Utilisateurs (phase 1) | Techniciens du labo, médecins — non-développeurs | Confirmé |
 | Utilisateurs (phase 2) | Cliniciens partenaires, autres établissements | Confirmé |
 | Machine partagée / contention | Station partagée : un calcul lourd voisin peut dégrader le service | **Confirmé** |
 | Espace disque dédié | À préciser | Ouvert |
 | Sauvegarde de l'espace disque | À préciser | Ouvert |
-| Ordonnanceur de travaux (type Slurm) | À vérifier | Ouvert |
+| Ordonnanceur de travaux | À vérifier | Ouvert |
 
----
-
-## 2. Décisions
-
+## 2.
 ### D1 — Le calcul s'exécute sur la station, pas sur le poste client
 
 **Acté.** Le calcul scientifique est trop lourd pour un poste client, et les données ne doivent pas circuler.
 
-**Conséquence non négociable :** le client, quel qu'il soit, ne calcule rien. Il ne fait qu'émettre des demandes et consulter des états. **Un point d'entrée réseau côté station est donc inévitable.** Le débat « faut-il une API ? » est clos par cette décision — il ne reste que le choix de la nature du client.
+**Conséquence :** le client ne calcule rien. Il ne fait qu'émettre des demandes et consulter des états. **Un point d'entrée réseau côté station est donc inévitable.** Il faut donc une API forcément, la nature reste à définir. 
 
 ### D2 — Les échanges sont asynchrones par conception
 
@@ -47,27 +42,24 @@ Le pipeline traite des examens IRM : récupération DICOM, exécution d'une mét
 
 Un traitement est **soumis** (retour immédiat d'un identifiant), puis son état est **consulté**. Trois raisons convergentes :
 
-1. Les traitements sont longs ; une requête HTTP ne peut pas attendre.
+1. Les traitements sont longs (mutools dev surtout!); une requête HTTP ne peut pas attendre.
 2. Le point de suspension implique qu'un traitement puisse rester en attente indéfiniment, éventuellement repris par une autre personne ou après un redémarrage.
-3. Contrainte pratique immédiate : un processus lancé dans une session SSH meurt à la déconnexion.
+3. Implique : un processus lancé dans une session SSH meurt à la déconnexion.
 
 **Conséquence :** la notion de **job** entre dans le modèle — un objet portant un identifiant, un état, et l'historique de la demande. Cette forme doit être vraie **dès la CLI**, sinon elle sera à réécrire lors du passage à une interface distante.
 
 ### D3 — Le mode d'accès est un adaptateur, jamais du cœur
 
-**Acté.** C'est la décision qui rend toutes les autres différables.
+**Acté.** 
 
-CLI aujourd'hui, API et interface visuelle demain : ce sont des adaptateurs primaires au sens de l'architecture hexagonale. Le cœur (runner, méthodes) ignore par quel canal la demande est arrivée.
+CLI aujourd'hui, API et interface visuelle demain : ce sont des adaptateurs primaires (archi hexa). Le cœur (runner, méthodes) ignore par quel canal la demande est arrivée.
 
-**Conséquences immédiates sur le code existant :**
-- Les `print` actuels dans `run_pipeline` sont provisoires : la sortie devra être injectée, pas codée en dur dans le cœur.
-- Aucun `input()` ni interaction directe dans le cœur, jamais.
 
 ### D4 — Le canal utilisateur cible est un service exposant une API, avec un client visuel
 
 **Acté sur le principe, différé sur la réalisation.**
 
-Cette conclusion découle des trois contraintes déjà connues, elle n'est pas un choix parmi d'autres :
+Cette conclusion découle des trois contraintes déjà connues :
 
 - calcul sur la station → le client est mince ;
 - les fichiers ne doivent pas être modifiables par l'utilisateur → aucun accès direct au système de fichiers, tout passe par un service qui contrôle ;
@@ -79,8 +71,7 @@ Cette conclusion découle des trois contraintes déjà connues, elle n'est pas u
 
 ### D5 — Phasage
 
-| Phase | Canal | Utilisateurs |
-|---|---|---|
+
 | M1–M2 | CLI en SSH sur la station | Développement, techniciens du labo |
 | Cible | Service + API + client visuel | Médecins, sites partenaires |
 
@@ -98,9 +89,9 @@ Double bénéfice : les imports ne dépendent plus du répertoire de lancement (
 
 ### Contraintes à respecter dès maintenant (coûteuses à rétrofitter)
 
-- **Portabilité Windows → Linux.** Manipulation des chemins exclusivement via `pathlib`, jamais par concaténation de chaînes. Vigilance sur la casse : Linux distingue `Dixon` de `dixon`, Windows non. *S'applique dès le prochain morceau de code, qui manipule `exam_dir` et `workdir`.*
+- **Portabilité Windows → Linux.** Manipulation des chemins exclusivement via `pathlib`
 
-- **Aucun chemin, URL ou nom de base en dur.** Tout provient d'un fichier de configuration. Sans cela, chaque établissement exigerait une version différente du logiciel.
+- **Aucun chemin, URL ou nom de base en dur.** Tout provient d'un fichier de configuration.
 
 - **L'état de suspension est persistant.** Un traitement en attente de validation doit survivre à un redémarrage et être repris par un autre canal que celui qui l'a lancé. L'état vit en base, pas en mémoire.
 
@@ -111,7 +102,8 @@ Double bénéfice : les imports ne dépendent plus du répertoire de lancement (
 La station est partagée. Un calcul lourd lancé par une autre équipe peut rendre le service temporairement inutilisable — sans que le code du pipeline soit en cause. C'est un mode de défaillance difficile à diagnostiquer.
 
 **Conséquences :**
-- Toute mise en service permanente doit être **coordonnée** avec les autres utilisateurs de la machine. Ce n'est pas une formalité administrative mais une contrainte technique réelle.
+- Toute mise en service permanente doit être **coordonnée** avec les autres utilisateurs de la machine. 
+
 - Cela renforce D2 : séparer le *service* (léger, doit rester réactif) du *calcul* (lourd, peut attendre) est la bonne réponse architecturale. Si un calcul saturait le service, un utilisateur ne pourrait même plus consulter l'état de ses travaux.
 - À vérifier : existence d'un ordonnanceur de travaux sur la machine. S'il existe, les calculs devront lui être **soumis** plutôt que lancés directement — forme très proche de celle retenue en D2.
 
@@ -121,7 +113,6 @@ La station est partagée. Un calcul lourd lancé par une autre équipe peut rend
 - Authentification, rôles et permissions
 - Conteneurisation, intégration continue, supervision
 - Stratégie de sauvegarde et de migration (dépend de l'ADR stockage)
-- Déploiement multi-sites et gestion des versions entre établissements
 
 ### Risques
 
@@ -150,4 +141,3 @@ La station est partagée. Un calcul lourd lancé par une autre équipe peut rend
 
 - Notes de réunion du 9 juillet 2026— stockage, arborescence, accès aux fichiers
 - Design doc pipeline IRM v2, §5 (architecture hexagonale), §7 (design détaillé)
-- ADR-001 v1 (2026-07-18), remplacé par le présent document

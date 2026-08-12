@@ -8,28 +8,28 @@ class ReportGenerationError(Exception):
 
 
 class NoResultsFoundError(ReportGenerationError):
-    """Précondition : no results for the patient — nothing to generate."""
-    def __init__(self, patient_id, data_dir):
-        super().__init__(f"No results found for patient {patient_id} in {data_dir}")
-        self.patient_id = patient_id
+    """Précondition : no results for the exam — nothing to generate."""
+    def __init__(self, exam_id, data_dir):
+        super().__init__(f"No results found for exam {exam_id} in {data_dir}")
+        self.exam_id = exam_id
         self.data_dir = data_dir
 
 class NoPDFGeneratedError(ReportGenerationError):
     """Postcondition : we tried to generate the PDF and it failed."""
-    def __init__(self, patient_id, pdf_path):
+    def __init__(self, exam_id, pdf_path):
         super().__init__(f"PDF generation failed: {pdf_path} was not created")
-        self.patient_id = patient_id
+        self.exam_id = exam_id
         self.pdf_path = pdf_path
 
 
 class ReportGenerator(ABC):
     @abstractmethod
-    def generate(self, patient_id, data_dir, output_dir, *, lang="fr", config=None) -> Path:
-        """Generate the patient's PDF from data_dir, write it under output_dir,
+    def generate(self, exam_ids, data_dir, output_dir, *, lang="en", config=None) -> Path:
+        """Generate the exam's PDF from data_dir, write it under output_dir,
         and return the PDF path.
 
         Raises:
-            NoResultsFoundError: no results available for this patient.
+            NoResultsFoundError: no results available for this exam.
             NoPDFGeneratedError: generation ran but produced no PDF.
         """
         

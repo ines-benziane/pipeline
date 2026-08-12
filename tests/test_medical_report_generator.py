@@ -5,7 +5,7 @@ from adapters.medical_report_generator import MedicalReportGenerator
 from runner.report_generator import NoPDFGeneratedError
 
 
-def _fake_get_exam(patient_id, data_dir, config_data=None):
+def _fake_get_exam(exam_id, data_dir, config_data=None, antecedent_id=None):
     """Fake hermétique : renvoie un résultat non vide sans toucher au disque,
     pour atteindre l'appel à create_pdf (seul point réellement testé ici)."""
     return ["fake_exam"]
@@ -23,7 +23,7 @@ def test_generate_raises_when_create_pdf_writes_nothing(tmp_path, monkeypatch):
 
     generator = MedicalReportGenerator()
     with pytest.raises(NoPDFGeneratedError):
-        generator.generate("pat_test", tmp_path / "data", output_dir)
+        generator.generate(["exam_test"], tmp_path / "data", output_dir)
 
 
 def test_generate_does_not_return_stale_pdf(tmp_path, monkeypatch):
@@ -37,6 +37,6 @@ def test_generate_does_not_return_stale_pdf(tmp_path, monkeypatch):
 
     generator = MedicalReportGenerator()
     with pytest.raises(NoPDFGeneratedError):
-        generator.generate("pat_test", tmp_path / "data", output_dir)
+        generator.generate(["exam_test"], tmp_path / "data", output_dir)
 
     assert not stale_pdf.exists()

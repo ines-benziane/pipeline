@@ -7,7 +7,8 @@ name = "myo-pipeline"
 version = "0.1.0"
 description = "Pipeline IRM — PACS to medical report orchestration (runner + methods)"
 readme = "README.md"
-requires-python = ">=3.11"
+# Fixé à 3.12 car le wheel MuTools (cp312) n'existe que pour cette version.
+requires-python = ">=3.12,<3.13"
 authors = [
     { name = "Inès Benziane", email = "i.benziane@institut-myologie.org" },
 ]
@@ -19,6 +20,38 @@ dependencies = [
     "pydantic",
     "pyyaml",
     "click",
+    "pydicom",
+    "pynetdicom",
+    # dicomstack n'est pas publié sur PyPI : on le télécharge directement en zip
+    # depuis GitHub (=pas besoin de git installé sur la machine).
+    # Pour changer de version : prendre le numéro d'un commit sur
+    # https://github.com/py-baudin/dicomstack/commits/main et le mettre à la
+    # place du numéro ci-dessous, puis relancer install.ps1 / install.sh.
+    "dicomstack @ https://github.com/py-baudin/dicomstack/archive/c3ea99b6b577a242292b93cd5174e26290091ec.zip",
+    # MuTools/epgpy/machines/Museg-ai (outils de l'institut, pas publiés sur
+    # PyPI) : deux sources réseau différentes selon la plateforme.
+    #   - Windows (poste)  : R:\Services\RMN\13_Outils\mutools (= \\gaia.im.local\gaia)
+    #   - Linux (station)  : /mnt/rmn_files/Outils/mutools (= N:\Outils\mutools sur Windows)
+    # Le marqueur `; sys_platform == "..."` fait choisir la bonne ligne par pip
+    # selon l'OS où tourne l'install — les deux lignes d'un même paquet
+    # coexistent dans un seul pyproject.toml, pas besoin de fichier séparé.
+    # Le wheel MuTools est compilé (tag cp312) : c'est pourquoi requires-python
+    # est fixé à 3.12 ci-dessus, sur les deux plateformes.
+    # ATTENTION version : pas de build Linux de MuTools en dev14 (celle utilisée
+    # sur Windows) — la plus proche disponible est dev15. Léger écart de version
+    # entre les deux plateformes, assumé pour l'instant (voir mémoire de session).
+    # Pour changer de version : prendre le nouveau fichier .whl déposé sur le
+    # partage concerné par l'auteur de mutools et mettre à jour la ligne visée.
+    "MuTools @ file:///R:/Services/RMN/13_Outils/mutools/MuTools-2.6.dev14-cp312-cp312-win_amd64.whl ; sys_platform == 'win32'",
+    "MuTools @ file:///mnt/rmn_files/Outils/mutools/MuTools-2.6.dev15-cp312-cp312-linux_x86_64.whl ; sys_platform == 'linux'",
+    "epgpy @ file:///R:/Services/RMN/13_Outils/mutools/epgpy-3.2.dev5-py3-none-any.whl ; sys_platform == 'win32'",
+    "epgpy @ file:///mnt/rmn_files/Outils/mutools/epgpy-3.2.dev5-py3-none-any.whl ; sys_platform == 'linux'",
+    "machines @ file:///R:/Services/RMN/13_Outils/mutools/machines-1.4.dev13-py3-none-any.whl ; sys_platform == 'win32'",
+    "machines @ file:///mnt/rmn_files/Outils/mutools/machines-1.4.dev13-py3-none-any.whl ; sys_platform == 'linux'",
+    "docker",
+    "SimpleITK",
+    "Museg-ai @ file:///N:/Outils/mutools/museg_ai-0.2.dev8-py3-none-any.whl ; sys_platform == 'win32'",
+    "Museg-ai @ file:///mnt/rmn_files/Outils/mutools/museg_ai-0.2.dev8-py3-none-any.whl ; sys_platform == 'linux'",
 ]
 
 [project.optional-dependencies]

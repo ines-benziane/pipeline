@@ -6,7 +6,7 @@ from methods.dummy import DummyMethod
 from runner import methods_registry
 from runner.job import Job, JobState
 from runner.method import Method, Result
-from runner.runner import run_pipeline
+from runner.job_runner import run_job
 
 
 class NotAutoValidMethod(Method):
@@ -48,12 +48,12 @@ def test_method_without_run_is_rejected():
 def test_job_reaches_results_ready():
     methods_registry.register(DummyMethod)
     job = Job(job_id="test001", exam_id="exam_test", segment="legs", method_id="dummy")
-    run_pipeline(job)
+    run_job(job)
     assert job.state is JobState.RESULTS_READY
 
 
 def test_job_reaches_suspended():
     methods_registry.register(NotAutoValidMethod)
     job = Job(job_id="test002", exam_id="exam_test", segment="legs", method_id="not_auto_valid")
-    run_pipeline(job)
+    run_job(job)
     assert job.state is JobState.SUSPENDED

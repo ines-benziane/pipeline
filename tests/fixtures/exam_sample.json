@@ -44402,7 +44402,7 @@
     }
   ],
   "metadata": {
-    "patient_id": "pat002",
+    "exam_id": "pat002",
     "exam_date": "20210504",
     "segment": "legs",
     "method": "dixon3pt-t2slice",

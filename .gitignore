@@ -6,3 +6,7 @@ workdirs/
 .pytest_cache/
 .ruff_cache/
 data/
+dixon_data_test*/
+*.pptx
+prompt_series_resolution.md
+museg-ai/
