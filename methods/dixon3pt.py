@@ -18,6 +18,7 @@ class Dixon3ptMethod(Method) :
 
     def run (self, exam_dir, workdir, segment):
         stack = DicomStack(exam_dir)
+        print(stack.unique("Rows"), stack.unique("Columns"), stack.unique("PixelSpacing"))
         if not stack :
             raise ValueError(f"No dicom data found in {exam_dir}")
         info, volumes = parse_dicom_dixon_default(stack, npoint=3)
@@ -39,7 +40,7 @@ class Dixon3ptMethod(Method) :
         model = MODEL_BY_SEGMENT[segment]
 
         rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
-        
+
 
 if __name__ == "__main__":
     method = Dixon3ptMethod()
