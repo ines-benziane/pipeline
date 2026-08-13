@@ -1,0 +1,74 @@
+# config for results in roi_dixon
+
+# extract CSA from ROI (no input needed)
+csa:
+  suffix: 
+  roi: roi_museg
+  inputs: 
+  options: 
+    coordinates: true
+  variables:
+    - name: CSA
+      action: CSA
+
+
+dixon3pt_t2slice:
+  # fat-fraction in the same slices as T2
+  suffix: _DIX3
+  inputs: [dixon3pt, t2map_3exp_dict]
+  roi: roi_museg
+  default:
+    filters: [(ffmap >= 0) & (ffmap <= 1)]
+    morphology: {kind: erosion, axis: 2, size: 2}
+  options:
+    reference: t2map
+    coordinates: true
+  variables:
+    - name: NPIX
+      action: NPIX
+    - name: FF
+      action: mean(ffmap)
+    - name: NPIX
+      action: NPIX
+      how: slice
+    - name: FF
+      how: slice
+      action: mean(ffmap)
+    - name: OUTLINE
+      how: slice
+      action: outline()
+
+
+# extract T2 stats values from t2map 3exp
+t2map_3exp:
+  suffix: _3EXP
+  inputs: t2map_3exp_dict
+  roi: roi_museg
+  default:
+      filters: [(t2map > 15) & (t2map < 70), (t2cint >= 0) & (t2cint <= 10)]
+      morphology: {kind: erosion, axis: 2, size: 1}
+  options: 
+    reference: t2map
+    coordinates: true
+  variables:
+    - name: NPIX
+      action: NPIX
+    - name: T2
+      action: mean(t2map)
+    - name: T2 # T2 per slice
+      how: slice
+      action: mean(t2map)
+    - name: T2STD
+      action: std(t2map)
+    - name: T2STD
+      how: slice
+      action: std(t2map)
+    - name: T2CINT
+      action: mean(t2cint)
+    - name: FF
+      action: mean(ffmap)
+      private: true
+      filters: [(ffmap >= 0) & (ffmap <= 1)]
+    - name: OUTLINE
+      how: slice
+      action: outline()
