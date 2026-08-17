@@ -30,6 +30,10 @@ def run_job(job, dev=False) :
     previous_level = root_logger.level
     root_logger.setLevel(logging.DEBUG if dev else logging.INFO)
     root_logger.addHandler(handler)
+    # quiets noisy third-party libraries even in dev mode (docker/urllib3 log
+    # every HTTP call to the docker daemon at DEBUG level)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("docker").setLevel(logging.WARNING)
 
     job_store.save(job)
     try:
