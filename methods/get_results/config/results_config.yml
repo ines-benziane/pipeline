@@ -11,6 +11,22 @@ csa:
     - name: CSA
       action: CSA
 
+dixon3pt:
+  # fat-fraction 
+  suffix: _DIX3
+  inputs: [dixon3pt]
+  roi: roi_museg
+  default:
+    filters: [(ffmap >= 0) & (ffmap <= 1)]
+    morphology: {kind: erosion, axis: 2, size: 2}
+  options:
+    coordinates: true
+  variables:
+    - name: NPIX
+      action: NPIX
+    - name: FF
+      action: mean(ffmap)
+
 
 dixon3pt_t2slice:
   # fat-fraction in the same slices as T2

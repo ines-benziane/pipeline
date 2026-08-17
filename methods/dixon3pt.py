@@ -1,6 +1,8 @@
 """Dixon 3pt method"""
 
-from runner.method import Method
+from pathlib import Path
+
+from runner.method import Method, Result
 from dicomstack import DicomStack
 from mutools.fatwater.utils import make_mask, make_ffmap
 from mutools.fatwater.dixon import dixon_3pt
@@ -8,6 +10,7 @@ from mutools.fatwater.readers import parse_dicom_dixon_default
 from musegai.io import Image
 import numpy as np
 from musegai.api import run_model
+from methods.get_results.getresults import getresults
 
 MODEL_BY_SEGMENT = {"legs": "museg-legs:model1", "thighs": "museg-thighs:model3"}
 
@@ -50,7 +53,16 @@ class Dixon3ptMethod(Method) :
             rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
         except Exception as e:
             raise RuntimeError(f"Segmentation failed for {exam_dir} (segment={segment})") from e
-
+        table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
+        # TODO: remplacer par un passage direct de la table en mémoire à
+        # medical_report/csv_parser, une fois le chemin heureux validé.
+        csv_path = Path(workdir) / "results.csv"
+        table.to_csv(csv_path, index=False)
+        return Result(
+            results=csv_path,
+            auto_valid=True,
+            provenance={"name": self.name, "version": self.version},
+        )
 
 if __name__ == "__main__":
     from runner import methods_registry
