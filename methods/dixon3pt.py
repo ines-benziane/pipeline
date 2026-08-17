@@ -53,6 +53,9 @@ class Dixon3ptMethod(Method) :
             rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
         except Exception as e:
             raise RuntimeError(f"Segmentation failed for {exam_dir} (segment={segment})") from e
+        # musegai.io.Labels stores indices/descriptions as parallel lists;
+        # mutools.tables.getresults.extract expects a plain {index: description} dict.
+        labels = dict(zip(labels.indices, labels.descriptions))
         table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
         # TODO: remplacer par un passage direct de la table en mémoire à
         # medical_report/csv_parser, une fois le chemin heureux validé.
