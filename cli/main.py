@@ -6,12 +6,14 @@ import click
 
 from adapters.medical_report_generator import MedicalReportGenerator
 from methods.dummy import DummyMethod
+from methods.dixon3pt import dixon_3pt
 from runner import methods_registry
 from runner.job import Job
 from runner.report_generator import ReportGenerationError
 from runner.job_runner import run_job
 
 methods_registry.register(DummyMethod)
+methods_registry.register(dixon_3pt)
 
 @click.group()
 def cli():
@@ -114,8 +116,8 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 @click.option("--with-antecedent", is_flag=True, help="Inclure l'antécédent le plus récent dans le rapport.")
 @click.option("--series", help="Optionnel. Associate the segment with its series. Caution : for 1 exam only. For multiple exams, use series-file. If not given : automated detectionof series. ")
 @click.option("--series-file", help="Optionnel. File's path of the association of the segment with its series for each exam.  If not given : automated detectionof series.")
-
-def process(exam_id, source_dir, dest_dir, mode, method, output_dir, lang, segment, with_antecedent):
+@click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
+def process(exam_id, source_dir, dest_dir, mode, method, output_dir, lang, segment, with_antecedent, dev):
     """Chaîne retrieve → run → report, chemin heureux."""
     try:
         result = run_pipeline(
@@ -131,6 +133,7 @@ def process(exam_id, source_dir, dest_dir, mode, method, output_dir, lang, segme
             exam_id=exam_id,
             lang=lang,
             segment=list(segment) or None,
+            dev=dev
         )
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)

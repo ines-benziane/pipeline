@@ -1,3 +1,8 @@
+"""Jobs tracks the state of a single task going through the "methods" brick.
+It will be useful for reporting to a server, once one exists.
+It let us tell a failed task apart from one that is normally suspended for QC,
+and weither a task can be resumed or not."""
+
 import uuid
 
 from dataclasses import dataclass, field

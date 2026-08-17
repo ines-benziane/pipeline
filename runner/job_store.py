@@ -1,3 +1,5 @@
+"""Save job's information on disk."""
+
 import json
 from pathlib import Path
 
