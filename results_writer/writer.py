@@ -44,13 +44,20 @@ def _build_volume_result(row: dict) -> Optional[VolumeData]:
 
 def _build_slice_result(row: dict) -> SliceData:
     """Build SliceData from a SLICE row."""
+    outline = row.get("OUTLINE", "")
+    if isinstance(outline, float):
+        # pandas stores a missing/failed outline() as NaN (a float), not "" —
+        # SliceData's own validator only knows how to parse strings, so
+        # normalize NaN to "" here (same as what a CSV round-trip used to do
+        # implicitly before we switched to reading `table` in memory).
+        outline = ""
     return SliceData(
         index=row["INDEX"],
         x=row["X"],
         y=row["Y"],
         z=row["Z"],
         stats=_extract_stats(row),
-        outline= row.get("OUTLINE", ""),
+        outline=outline,
     )
 
 def get_slice_number(s):
