@@ -117,7 +117,7 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 @click.option("--series", help="Optionnel. Associate the segment with its series. Caution : for 1 exam only. For multiple exams, use series-file. If not given : automated detectionof series. ")
 @click.option("--series-file", help="Optionnel. File's path of the association of the segment with its series for each exam.  If not given : automated detectionof series.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
-def process(exam_id, source_dir, dest_dir, mode, method, output_dir, lang, segment, with_antecedent, dev):
+def process(exam_id, source_dir, dest_dir, mode, method, output_dir, lang, segment, with_antecedent, series, series_file, dev):
     """Chaîne retrieve → run → report, chemin heureux."""
     try:
         result = run_pipeline(
