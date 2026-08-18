@@ -1,0 +1,190 @@
+{
+  "muscles": [
+    {
+      "name": "TA",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 18974.0,
+          "FF": 0.9652609486957623
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "ED",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 7778.0,
+          "FF": 0.918635390837938
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "PER",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 17826.0,
+          "FF": 0.9365025087941696
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "DLPC",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 19554.0,
+          "FF": 0.9398672825105193
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "POP",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 1795.0,
+          "FF": 0.9704471084480223
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "SOL",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 77146.0,
+          "FF": 0.9650985844444999
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "GAS_MED",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 61078.0,
+          "FF": 0.9851513510325973
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "GAS_LAT",
+      "side": "R",
+      "volume": {
+        "stats": {
+          "NPIX": 25089.0,
+          "FF": 0.9663702307944845
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "TA",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 18342.0,
+          "FF": 0.02966793630093444
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "ED",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 7586.0,
+          "FF": 0.059134082208805595
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "PER",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 18889.0,
+          "FF": 0.06136116602464091
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "DLPC",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 20956.0,
+          "FF": 0.0452026699795528
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "POP",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 1839.0,
+          "FF": 0.018902588452485967
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "SOL",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 83187.0,
+          "FF": 0.024916250591189848
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "GAS_MED",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 59714.0,
+          "FF": 0.01320273670751614
+        }
+      },
+      "slices": []
+    },
+    {
+      "name": "GAS_LAT",
+      "side": "L",
+      "volume": {
+        "stats": {
+          "NPIX": 27448.0,
+          "FF": 0.023735047614903214
+        }
+      },
+      "slices": []
+    }
+  ],
+  "metadata": {
+    "exam_id": "dixon_data_test_CL2LD260112",
+    "exam_date": "unknown",
+    "segment": "legs",
+    "method": "dixon3pt",
+    "version": "1.0",
+    "acquisition": "unknown",
+    "segmentation": "seg",
+    "biomarker": "FF"
+  }
+}

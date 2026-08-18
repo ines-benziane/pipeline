@@ -36,5 +36,3 @@ def run_pipeline(
         "exam_ids_for_report": exam_ids_for_report,
         "pdf_path": pdf_path,
     }
-
-#Noter ce que fait job précisémment 
