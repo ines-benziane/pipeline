@@ -26,6 +26,9 @@ dixon3pt:
       action: NPIX
     - name: FF
       action: mean(ffmap)
+    - name: OUTLINE
+      how: slice
+      action: outline()
 
 
 dixon3pt_t2slice:
