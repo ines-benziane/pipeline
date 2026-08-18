@@ -87,6 +87,6 @@ if __name__ == "__main__":
     from runner.job_runner import run_job
 
     methods_registry.register(Dixon3ptMethod)
-    job = Job(exam_id="dixon_data_test", segment="legs", method_id="dixon3pt")
+    job = Job(exam_id="dixon_data_test_CL2LD260112", segment="legs", method_id="dixon3pt")
     run_job(job, dev=True)
     print(job)
