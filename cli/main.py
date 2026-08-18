@@ -6,14 +6,14 @@ import click
 
 from adapters.medical_report_generator import MedicalReportGenerator
 from methods.dummy import DummyMethod
-from methods.dixon3pt import dixon_3pt
+from methods.dixon3pt import Dixon3ptMethod
 from runner import methods_registry
 from runner.job import Job
 from runner.report_generator import ReportGenerationError
 from runner.job_runner import run_job
 
 methods_registry.register(DummyMethod)
-methods_registry.register(dixon_3pt)
+methods_registry.register(Dixon3ptMethod)
 
 @click.group()
 def cli():
