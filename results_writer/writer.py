@@ -26,10 +26,13 @@ def _extract_stats(row: dict) -> dict[str, str]:
     """Extract all stat columns dynamically from a row."""
     stats = {}
     for col, value in row.items():
-        value = str(value).strip()
         if col in NON_STAT_COLUMNS:
             continue
-        if value != "":
+        if value is None:
+            # e.g. mean(ffmap) over a muscle with NPIX=0 at this slice: undefined
+            continue
+        value = str(value).strip()
+        if value != "" and value.lower() != "nan":
             stats[col] = value
     return stats
 
