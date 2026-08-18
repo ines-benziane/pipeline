@@ -11,6 +11,8 @@ from musegai.io import Image
 import numpy as np
 from musegai.api import run_model
 from methods.get_results.getresults import getresults
+from results_writer.writer import parse_table
+from results_writer.json_writer import JsonWriter
 
 MODEL_BY_SEGMENT = {"legs": "museg-legs:model1", "thighs": "museg-thighs:model3"}
 
@@ -23,7 +25,7 @@ class Dixon3ptMethod(Method) :
         stack = DicomStack(exam_dir)
         if not stack : #erreur possible
             raise ValueError(f"No dicom data found in {exam_dir}")
-        #erreur 
+        #erreur = a changer en try except 
         try :
             info, volumes = parse_dicom_dixon_default(stack, npoint=3)
             echo_times = info["echo_times"]
@@ -57,12 +59,24 @@ class Dixon3ptMethod(Method) :
         # mutools.tables.getresults.extract expects a plain {index: description} dict.
         labels = dict(zip(labels.indices, labels.descriptions))
         table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
-        # TODO: remplacer par un passage direct de la table en mémoire à
-        # medical_report/csv_parser, une fois le chemin heureux validé.
-        csv_path = Path(workdir) / "results.csv"
-        table.to_csv(csv_path, index=False)
+
+        # TODO: exam_date et acquisition n'ont aujourd'hui aucune source dans
+        # run(exam_dir, workdir, segment) — placeholders à remplacer une fois
+        # décidé d'où ces infos doivent venir (cf. ExamMetadata: "Have to
+        # determine where the metadata are coming from").
+        metadata = {
+            "exam_id": exam_dir,
+            "exam_date": "unknown",
+            "segment": segment,
+            "method": self.name,
+            "version": self.version,
+            "acquisition": "unknown",
+            "biomarker": "FF",
+        }
+        exam = parse_table(table, metadata)
+        json_path = JsonWriter().write(exam, Path(workdir))
         return Result(
-            results=csv_path,
+            results=json_path,
             auto_valid=True,
             provenance={"name": self.name, "version": self.version},
         )
