@@ -60,17 +60,14 @@ class Dixon3ptMethod(Method) :
         labels = dict(zip(labels.indices, labels.descriptions))
         table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
 
-        # TODO: exam_date et acquisition n'ont aujourd'hui aucune source dans
-        # run(exam_dir, workdir, segment) — placeholders à remplacer une fois
-        # décidé d'où ces infos doivent venir (cf. ExamMetadata: "Have to
-        # determine where the metadata are coming from").
+        exam_date = stack.single("StudyDate")
         metadata = {
             "exam_id": exam_dir,
-            "exam_date": "unknown",
+            "exam_date": exam_date,
             "segment": segment,
             "method": self.name,
             "version": self.version,
-            "acquisition": "unknown",
+            "acquisition": "1.0",
             "biomarker": "FF",
         }
         exam = parse_table(table, metadata)
