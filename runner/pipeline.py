@@ -15,9 +15,11 @@ def run_pipeline(
 
     retriever.retrieve_exam(exam_id, dest_dir, mode=mode)
     segments = list(segment) if segment else ["legs", "thighs"]
-    for seg in segments:
-        job = Job(exam_id=exam_id, segment=seg, method_id=method)
-        run_job(job, dev)
+    methods = list(method)
+    for meth in methods: 
+        for seg in segments:
+            job = Job(exam_id=exam_id, segment=seg, method_id=meth)
+            run_job(job, dev)
     exam_ids_for_report = [exam_id]
     if with_antecedent :
         related = catalog.find_related_exams(exam_id)
@@ -26,9 +28,10 @@ def run_pipeline(
         most_recent = max(related, key=lambda e: e.exam_date)
         if not result_index.has_result(most_recent.exam_id):
             retriever.retrieve_exam(most_recent.exam_id, dest_dir, mode=mode)
-            for seg in segments :
-                job = Job(exam_id=most_recent.exam_id, segment=seg, method_id=method)
-                run_job(job, dev)
+            for meth in methods:
+                for seg in segments :
+                    job = Job(exam_id=most_recent.exam_id, segment=seg, method_id=meth)
+                    run_job(job, dev)
         exam_ids_for_report.append(most_recent.exam_id)
     pdf_path = report_generator.generate(exam_ids_for_report, RESULT_DIR, output_dir, lang=lang)
     return {

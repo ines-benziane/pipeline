@@ -108,7 +108,7 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 @click.option("--source-dir", required=True, help="Où le faux dicom va chercher les fichiers")
 @click.option("--dest-dir", required=True, help="Sert à la fois de destination de retrieve et d'exam_dir pour run")
 @click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
-@click.option("--method", required=True)
+@click.option("--method", multiple=True, required=True)
 @click.option("--output-dir", required=True)
 @click.option("--segment", multiple=True,
               help="Segment à traiter. Répétable. Défaut: legs et thighs.")
