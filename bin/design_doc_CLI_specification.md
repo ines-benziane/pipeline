@@ -172,10 +172,10 @@ En cas d'échec, affiche la cause. Le `workdir` est conservé exprès pour perme
 
 ---
 
-### `methods` — méthodes disponibles
+### `show-methods` — méthodes disponibles
 
 ```bash
-pipeline methods
+pipeline show-methods
 ```
 
 ```

@@ -27,9 +27,9 @@ class MedicalReportGenerator(ReportGenerator):
 
 
      # Un fichier du même nom peut déjà traîner dans output_dir (run précédent). On le
-        # supprime avant l'appel pour que "pdf_path.exists()" ci-dessous signifie bien
-        # "produit par cet appel", pas "un vieux fichier était déjà là".
-        # create_pdf avale ses propres exceptions (try/except interne qui imprime sur stdout
-        # sans relever) : si la génération échoue en interne, le NoPDFGeneratedError ci-dessous se
-        # déclenche bien, mais sans __cause__ vers l'erreur réelle — elle n'existe que dans
-        # la trace imprimée par create_pdf, perdue pour l'appelant.
+# supprime avant l'appel pour que "pdf_path.exists()" ci-dessous signifie bien
+# "produit par cet appel", pas "un vieux fichier était déjà là".
+# create_pdf avale ses propres exceptions (try/except interne qui imprime sur stdout
+# sans relever) : si la génération échoue en interne, le NoPDFGeneratedError ci-dessous se
+# déclenche bien, mais sans __cause__ vers l'erreur réelle — elle n'existe que dans
+# la trace imprimée par create_pdf, perdue pour l'appelant.

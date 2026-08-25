@@ -23,8 +23,10 @@ def _new_job_id() -> str:
 @dataclass
 class Job:
     exam_id: str
+    exam_dir: str
     segment: str
     method_id: str
     job_id: str = field(default_factory=_new_job_id)
     state: JobState = JobState.PENDING
     workdir: Path | None = None
+    other_params:  list[str] | None = None

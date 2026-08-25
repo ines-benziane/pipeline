@@ -10,14 +10,14 @@ class DummyMethod(Method):
     version = "1.1"
     comparability_criteria = []
 
-    def run(self, exam_dir, workdir, segment):
+    def run(self, exam_dir, exam_id, workdir, segment, params):
         data = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
         for field in ("patient_name", "birth_date", "referring_doctor"):
             data["metadata"].pop(field, None)
 
         data["metadata"]["segment"] = segment
-        data["metadata"]["exam_id"] = exam_dir
+        data["metadata"]["exam_id"] = exam_id
 
         meta = data["metadata"]
         filename = (
@@ -33,5 +33,5 @@ class DummyMethod(Method):
     
 if __name__ == "__main__":
     dummy = DummyMethod()
-    result = dummy.run("bidon", "bidule", "legs")
+    result = dummy.run("bibi", "bidon", "bidule", "legs", "params")
     print(result)

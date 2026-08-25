@@ -37,7 +37,8 @@ def run_job(job, dev=False) :
 
     job_store.save(job)
     try:
-        result = method.run(job.exam_id, job.workdir, job.segment)
+        result = method.run(job.exam_dir, job.exam_id, job.workdir, job.segment, job.other_params)
+        
     except Exception:
         job.state = JobState.FAILED
         job_store.save(job)
@@ -59,6 +60,6 @@ if __name__ == "__main__":
     from methods.dummy import DummyMethod
     from runner.job import Job
     methods_registry.register(DummyMethod)
-    job = Job( exam_id="exam_bidon", segment="legs", method_id="dummy")
+    job = Job( exam_dir="dest_dir", exam_id="exam_bidon", segment="legs", method_id="dummy")
     run_job(job)
     print(job)

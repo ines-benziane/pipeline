@@ -17,23 +17,23 @@ methods_registry.register(Dixon3ptMethod)
 
 @click.group()
 def cli():
-    """Pipeline IRM - traitement d'examens et génération de rapports."""
+    """MRI Pipeline - Study processing and report generation"""
 
 @cli.command()
-def methods():
-    """Liste les méhodes disponibles."""
+def show_methods():
+    """Lists available methods."""
     for name, cls in methods_registry.list_methods().items():
         click.echo(f"{name} {cls.version}")
 
 
 @cli.command()
 @click.option("--exam-id", required=True, help="Identifiant de l'examen.")
-@click.option("--method", required=True, help="Nom de la méthode (voir: pipeline methods).")
+@click.option("--method", required=True, help="Nom de la méthode (voir: pipeline show-methods).")
 @click.option("--segment", multiple=True,
               help="Segment à traiter. Répétable. Défaut: legs et thighs.")
 @click.option("--dry-run", is_flag=True, help="Montre ce qui serait fait, sans rien créer.")
-def run(exam_id, method, segment, dry_run):
-    """Lance un traitement sur un examen."""
+def apply_method(exam_id, method, segment, dry_run):
+    """Applies a method on a study, creates corresponding job (task) for tracking."""
     segments = list(segment) if segment else ["legs", "thighs"]
 
     if dry_run:
@@ -58,7 +58,7 @@ def run(exam_id, method, segment, dry_run):
 @click.option("--output-dir", required=True, help="Dossier de sortie du rapport PDF.")
 @click.option("--lang", default="en", help="Langue du rapport.")
 def report(exam_id, data_dir, output_dir, lang):
-    """Génère le rapport médical PDF d'un examen à partir des résultats déjà traités."""
+    """Generates report from already processed data. """
     generator = MedicalReportGenerator()
     try:
         pdf_path = generator.generate([exam_id], data_dir, output_dir, lang=lang)
@@ -74,7 +74,7 @@ from adapters.dummy_exam_catalog import DummyExamCatalog
 @click.option("--show-series", "-s", is_flag=True, help="Show the series of this exam")
 @click.option("--related-exams", "-r", is_flag=True, help="Show the others exams related to the one of interst")
 def exams(exam_id, show_series, related_exams):
-    """Show informations about an exam."""
+    """Show information about an exam."""
     dummy = DummyExamCatalog()
     if show_series:
         for series in dummy.show_series(exam_id):
@@ -103,37 +103,53 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 
 ### TO DO : batch sur plusieurs examens
 
+def parse_series(series):
+    if not series:
+        return None
+    method, segment, series_str = series.split(":")
+    series_numbers = [int(n) for n in series_str.split(",")]
+    return {method: {segment: series_numbers}}
+
+def parse_acquisition(acquisition_id):
+    if not acquisition_id:
+        return None
+    acquisition, segment, side = acquisition_id.split(":")
+    return {acquisition: {segment: side}}
+
+def parse_method(method_id):
+    if not method_id:
+        return None
+    method_name, *params = method_id.split(":")
+    return {method_name: params}
+
 @cli.command()
 @click.option("--exam-id", required=True)
-@click.option("--source-dir", required=True, help="Où le faux dicom va chercher les fichiers")
-@click.option("--dest-dir", required=True, help="Sert à la fois de destination de retrieve et d'exam_dir pour run")
-@click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
-@click.option("--method", multiple=True, required=True)
-@click.option("--output-dir", required=True)
-@click.option("--segment", multiple=True,
-              help="Segment à traiter. Répétable. Défaut: legs et thighs.")
+@click.option("--dest-dir", required=True, help="Folder with the dicom ")
+@click.option("--method-id", required=True, help="method-id gathers the method's name and parameters needed by the method. Example : --method-name method_id:param1:param_2:param_3 ")
+@click.option("--acquisition-id", required=True, help="Acquisition parameters.Usage: acquisition:segment:side")
+@click.option("--output-dir", required=True, help="Fodler where the report will be stored.")
+# @click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--lang", default="en")
-@click.option("--with-antecedent", is_flag=True, help="Inclure l'antécédent le plus récent dans le rapport.")
-@click.option("--series", help="Optionnel. Associate the segment with its series. Caution : for 1 exam only. For multiple exams, use series-file. If not given : automated detectionof series. ")
-@click.option("--series-file", help="Optionnel. File's path of the association of the segment with its series for each exam.  If not given : automated detectionof series.")
+# @click.option("--with-antecedent", is_flag=True, help="Inclure l'antécédent le plus récent dans le rapport.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
-def process(exam_id, source_dir, dest_dir, mode, method, output_dir, lang, segment, with_antecedent, series, series_file, dev):
-    """Chaîne retrieve → run → report, chemin heureux."""
+@click.option("--series", help="Acquisition parameters.Usage: acquisition:segment:side")
+def process(exam_id, dest_dir, method_id, acquisition_id, output_dir, lang, series, dev):
+    """Chaîne retrieve → apply-method → report, chemin heureux."""
     try:
         result = run_pipeline(
-            result_index=FileResultIndex(),
-            retriever=DummyExamRetriever(source_dir),
+            # result_index=FileResultIndex(),
             report_generator=MedicalReportGenerator(),
             catalog=DummyExamCatalog(),
-            with_antecedent=with_antecedent,
+            # with_antecedent=with_antecedent,
             dest_dir=dest_dir,
-            mode=DeidentificationMode(mode),
-            method=method,
+            # mode=DeidentificationMode(mode),
+            acquisition_id=parse_acquisition(acquisition_id),
+            method_id=parse_method(method_id),
             output_dir=output_dir,
             exam_id=exam_id,
             lang=lang,
-            segment=list(segment) or None,
-            dev=dev
+            dev=dev,
+            series=parse_series(series)
         )
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)

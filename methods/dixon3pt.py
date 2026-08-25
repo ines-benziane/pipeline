@@ -21,7 +21,7 @@ class Dixon3ptMethod(Method) :
     version = "1.0"
     comparability_criteria = []
 
-    def run (self, exam_dir, workdir, segment):
+    def run (self, exam_dir, exam_id, workdir, segment, params):
         stack = DicomStack(exam_dir)
         if not stack : #erreur possible
             raise ValueError(f"No dicom data found in {exam_dir}")
@@ -62,7 +62,7 @@ class Dixon3ptMethod(Method) :
 
         exam_date = stack.single("StudyDate")
         metadata = {
-            "exam_id": exam_dir,
+            "exam_id": exam_id,
             "exam_date": exam_date,
             "segment": segment,
             "method": self.name,
@@ -84,6 +84,6 @@ if __name__ == "__main__":
     from runner.job_runner import run_job
 
     methods_registry.register(Dixon3ptMethod)
-    job = Job(exam_id="dixon_data_test_CL2LK260126", segment="legs", method_id="dixon3pt")
+    job = Job(exam_dir="dixon_data_test_CL2LK260126", exam_id="CL2LK260126", segment="legs", method_id="dixon3pt")
     run_job(job, dev=True)
     print(job)
