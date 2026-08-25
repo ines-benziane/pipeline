@@ -31,3 +31,4 @@ class Job:
     state: JobState = JobState.PENDING
     workdir: Path | None = None
     other_params:  list[str] | None = None
+    exam_date: str | None = None 

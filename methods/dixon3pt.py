@@ -21,9 +21,12 @@ class Dixon3ptMethod(Method) :
     version = "1.0"
     comparability_criteria = []
 
-    def run (self, exam_dir, exam_id, workdir, segment, series, params):
+    def run (self, exam_dir, exam_id, workdir, segment, series, params, date):
         stack = DicomStack(exam_dir)
-        stack = stack(SeriesNumber=series)
+        if date :
+            stack = stack(SeriesNumber=series, StudyDate=date)
+        else :
+            stack = stack(SeriesNumber=series)
         if not stack : #erreur possible
             raise ValueError(f"No dicom data found in {exam_dir}")
         #erreur = a changer en try except 
@@ -79,12 +82,12 @@ class Dixon3ptMethod(Method) :
             provenance={"name": self.name, "version": self.version},
         )
 
-if __name__ == "__main__":
-    from runner import methods_registry
-    from runner.job import Job
-    from runner.job_runner import run_job
+# if __name__ == "__main__":
+#     from runner import methods_registry
+#     from runner.job import Job
+#     from runner.job_runner import run_job
 
-    methods_registry.register(Dixon3ptMethod)
-    job = Job(exam_dir="dixon_data_test_CL2LK260126", exam_id="CL2LK260126", segment="legs", method_id="dixon3pt")
-    run_job(job, dev=True)
-    print(job)
+#     methods_registry.register(Dixon3ptMethod)
+#     job = Job(exam_dir="dixon_data_test_CL2LK260126", exam_id="CL2LK260126", segment="legs", method_id="dixon3pt")
+#     run_job(job, dev=True)
+#     print(job)

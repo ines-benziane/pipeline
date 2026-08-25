@@ -122,17 +122,18 @@ def parse_method(method_id):
     return {method_name: params}
 
 @cli.command()
-@click.option("--exam-id", required=True)
-@click.option("--source-dir", required=True, help="Folder with the dicom ")
-@click.option("--method-id", required=True, help="method-id gathers the method's name and parameters needed by the method. Example : --method-name method_id:param1:param_2:param_3 ")
-@click.option("--acquisition-id", required=True, help="Acquisition parameters.Usage: acquisition:segment:side")
-@click.option("--output-dir", required=True, help="Fodler where the report will be stored.")
-@click.option("--series", required=True, help="Acquisition parameters.Usage: --series 1,2,3")
+@click.option("--exam-id", "-e", required=True)
+@click.option("--source-dir", "-sd",  required=True, help="Folder with the dicom ")
+@click.option("--method-id", "-m", required=True, help="method-id gathers the method's name and parameters needed by the method. Example : --method-name method_id:param1:param_2:param_3 ")
+@click.option("--acquisition-id", "-a", required=True, help="Acquisition parameters.Usage: acquisition:segment:side")
+@click.option("--output-dir", "-o", required=True, help="Fodler where the report will be stored.")
+@click.option("--series", "-s", required=True, help="Acquisition parameters.Usage: --series 1,2,3")
 # @click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
-@click.option("--lang", default="en")
+@click.option("--lang", "-l", default="en")
 # @click.option("--with-antecedent", is_flag=True, help="Inclure l'antécédent le plus récent dans le rapport.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
-def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev):
+@click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies.")
+def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date):
     """Chaîne retrieve → apply-method → report, chemin heureux."""
     try:
         result = run_pipeline(
@@ -149,6 +150,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
             exam_id=exam_id,
             lang=lang,
             dev=dev,
+            exam_date=date
         )
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)

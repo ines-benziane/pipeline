@@ -70,7 +70,7 @@ def run_pipeline(
     if series:
         with open(Path(source_dir) / "series_selection.yml", "w") as f:
             yaml.dump(series, f)
-    job = Job(exam_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params)
+    job = Job(exam_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params, exam_date=exam_date)
     run_job(job, dev)
     exam_ids_for_report = [exam_id]
     # if with_antecedent :
