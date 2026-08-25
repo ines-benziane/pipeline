@@ -132,7 +132,7 @@ def parse_method(method_id):
 @click.option("--lang", "-l", default="en")
 # @click.option("--with-antecedent", is_flag=True, help="Inclure l'antécédent le plus récent dans le rapport.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
-@click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies.")
+@click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
 def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date):
     """Chaîne retrieve → apply-method → report, chemin heureux."""
     try:

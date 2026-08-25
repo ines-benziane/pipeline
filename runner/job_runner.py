@@ -63,3 +63,8 @@ def run_job(job, dev=False) :
 #     job = Job( exam_dir="dest_dir", exam_id="exam_bidon", segment="legs", method_id="dummy")
 #     run_job(job)
 #     print(job)
+
+# aujourd'hui 1 cmd = 1 section de report 
+# comment passer de plusieurs folder avec des noms aléatoire à un report ? Faire une recherche dans tous les dossiers ou avoir 
+# un dossier qui regroupe. Si on a un dossier qui regroupe on a un problème : si ça ne s'est pas passé, il sera la, donc on relance
+# et il y aura deux dossiers.. Mieux vaut faire une recherche avec report 
