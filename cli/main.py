@@ -93,7 +93,7 @@ from runner.pipeline import run_pipeline
 
 @cli.command()
 @click.option("--exam-id", "-id", required=True, help="Exam of interest")
-@click.optsource ("--dest-dir", "-dir", required=True, help="Directory for retrieved dicoms")
+@click.option ("--dest-dir", "-dir", required=True, help="Directory for retrieved dicoms")
 @click.option("--mode", "-m", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--source-dir", "-sdir", required=True, help="Where the dummy takes the dicoms")
 def retrieve(exam_id, dest_dir, mode, source_dir):
@@ -103,12 +103,11 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 
 ### TO DO : batch sur plusieurs examens
 
-# def parse_series(series):
-#     if not series:
-#         return None
-#     method, segment, series_str = series.split(":")
-#     series_numbers = [int(n) for n in series_str.split(",")]
-#     return {method: {segment: series_numbers}}
+def parse_series(series):
+    if not series:
+        return None
+    series_numbers = [int(n) for n in series.split(",")]
+    return series_numbers
 
 def parse_acquisition(acquisition_id):
     if not acquisition_id:
@@ -146,7 +145,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
             acquisition_id=parse_acquisition(acquisition_id),
             method_id=parse_method(method_id),
             output_dir=output_dir,
-            series=series,
+            series=parse_series(series),
             exam_id=exam_id,
             lang=lang,
             dev=dev,

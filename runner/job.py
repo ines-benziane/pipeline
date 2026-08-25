@@ -26,8 +26,8 @@ class Job:
     exam_dir: str
     segment: str
     method_id: str
+    series: list[int]
     job_id: str = field(default_factory=_new_job_id)
     state: JobState = JobState.PENDING
-    series: list[int]
     workdir: Path | None = None
     other_params:  list[str] | None = None
