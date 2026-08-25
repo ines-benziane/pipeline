@@ -130,10 +130,11 @@ def parse_method(method_id):
 @click.option("--series", "-s", required=True, help="Acquisition parameters.Usage: --series 1,2,3")
 # @click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--lang", "-l", default="en")
-# @click.option("--with-antecedent", is_flag=True, help="Inclure l'antécédent le plus récent dans le rapport.")
+# @click.option("--with-antecedent", is_flag=True, help="Include patient's history in report.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
 @click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
-def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date):
+@click.option("--quality-check", "-qc", is_flag=True, help="If given, quality check is activated. ")
+def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check):
     """Chaîne retrieve → apply-method → report, chemin heureux."""
     try:
         result = run_pipeline(
@@ -150,7 +151,8 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
             exam_id=exam_id,
             lang=lang,
             dev=dev,
-            exam_date=date
+            exam_date=date, 
+            qc = quality_check
         )
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)

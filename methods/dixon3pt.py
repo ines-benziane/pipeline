@@ -13,6 +13,7 @@ from musegai.api import run_model
 from methods.get_results.getresults import getresults
 from results_writer.writer import parse_table
 from results_writer.json_writer import JsonWriter
+from methods.quality_check.qc import quality_check
 
 MODEL_BY_SEGMENT = {"legs": "museg-legs:model1", "thighs": "museg-thighs:model3"}
 
@@ -21,7 +22,7 @@ class Dixon3ptMethod(Method) :
     version = "1.0"
     comparability_criteria = []
 
-    def run (self, exam_dir, exam_id, workdir, segment, series, params, date):
+    def run (self, exam_dir, exam_id, workdir, segment, series, params, date, qc=False):
         stack = DicomStack(exam_dir)
         if date :
             stack = stack(SeriesNumber=series, StudyDate=date)
@@ -76,18 +77,12 @@ class Dixon3ptMethod(Method) :
         }
         exam = parse_table(table, metadata)
         json_path = JsonWriter().write(exam, Path(workdir))
+        if qc:
+            qc = quality_check(ffmap)
+            qc.save(Path(workdir) / "overview.png")
+
         return Result(
             results=json_path,
             auto_valid=True,
             provenance={"name": self.name, "version": self.version},
         )
-
-# if __name__ == "__main__":
-#     from runner import methods_registry
-#     from runner.job import Job
-#     from runner.job_runner import run_job
-
-#     methods_registry.register(Dixon3ptMethod)
-#     job = Job(exam_dir="dixon_data_test_CL2LK260126", exam_id="CL2LK260126", segment="legs", method_id="dixon3pt")
-#     run_job(job, dev=True)
-#     print(job)

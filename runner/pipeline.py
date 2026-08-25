@@ -52,7 +52,7 @@ from runner.job_runner import run_job, RESULT_DIR
 
 def run_pipeline(
         report_generator, catalog, source_dir, acquisition_id, method_id,
-        output_dir, series, exam_id=None, patient_name=None, exam_date=None, dev=False, *, lang="en"
+        output_dir, series, exam_id=None, patient_name=None, exam_date=None, dev=False, qc=False,*, lang="en"
         ):
     if not exam_id :
         exams = catalog.find_exams(patient_name)
@@ -70,7 +70,7 @@ def run_pipeline(
     if series:
         with open(Path(source_dir) / "series_selection.yml", "w") as f:
             yaml.dump(series, f)
-    job = Job(exam_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params, exam_date=exam_date)
+    job = Job(exam_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params, exam_date=exam_date, qc = qc)
     run_job(job, dev)
     exam_ids_for_report = [exam_id]
     # if with_antecedent :

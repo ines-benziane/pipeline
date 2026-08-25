@@ -32,4 +32,5 @@ class Job:
     workdir: Path | None = None
     other_params:  list[str] | None = None
     exam_date: str | None = None 
+    qc: bool | None = False
 

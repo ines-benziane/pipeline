@@ -10,7 +10,7 @@ class DummyMethod(Method):
     version = "1.1"
     comparability_criteria = []
 
-    def run(self, exam_dir, exam_id, workdir, segment, series, params, date):
+    def run(self, exam_dir, exam_id, workdir, segment, series, params, date, qc=False):
         data = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
         for field in ("patient_name", "birth_date", "referring_doctor"):
@@ -31,7 +31,3 @@ class DummyMethod(Method):
             auto_valid=True,
             provenance = {"name": self.name, "version": self.version})
     
-if __name__ == "__main__":
-    dummy = DummyMethod()
-    result = dummy.run("bibi", "bidon", "bidule", "legs", "params")
-    print(result)
