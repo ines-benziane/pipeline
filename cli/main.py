@@ -93,7 +93,7 @@ from runner.pipeline import run_pipeline
 
 @cli.command()
 @click.option("--exam-id", "-id", required=True, help="Exam of interest")
-@click.optsource"--dest-dir", "-dir", required=True, help="Directory for retrieved dicoms")
+@click.optsource ("--dest-dir", "-dir", required=True, help="Directory for retrieved dicoms")
 @click.option("--mode", "-m", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--source-dir", "-sdir", required=True, help="Where the dummy takes the dicoms")
 def retrieve(exam_id, dest_dir, mode, source_dir):
