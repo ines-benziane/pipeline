@@ -28,5 +28,6 @@ class Job:
     method_id: str
     job_id: str = field(default_factory=_new_job_id)
     state: JobState = JobState.PENDING
+    series: list[int]
     workdir: Path | None = None
     other_params:  list[str] | None = None

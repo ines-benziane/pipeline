@@ -37,7 +37,7 @@ def run_job(job, dev=False) :
 
     job_store.save(job)
     try:
-        result = method.run(job.exam_dir, job.exam_id, job.workdir, job.segment, job.other_params)
+        result = method.run(job.exam_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params)
         
     except Exception:
         job.state = JobState.FAILED

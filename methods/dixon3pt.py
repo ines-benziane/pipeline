@@ -21,8 +21,9 @@ class Dixon3ptMethod(Method) :
     version = "1.0"
     comparability_criteria = []
 
-    def run (self, exam_dir, exam_id, workdir, segment, params):
+    def run (self, exam_dir, exam_id, workdir, segment, series, params):
         stack = DicomStack(exam_dir)
+        stack = stack(SeriesNumber=series)
         if not stack : #erreur possible
             raise ValueError(f"No dicom data found in {exam_dir}")
         #erreur = a changer en try except 

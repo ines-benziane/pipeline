@@ -93,7 +93,7 @@ from runner.pipeline import run_pipeline
 
 @cli.command()
 @click.option("--exam-id", "-id", required=True, help="Exam of interest")
-@click.option("--dest-dir", "-dir", required=True, help="Directory for retrieved dicoms")
+@click.optsource"--dest-dir", "-dir", required=True, help="Directory for retrieved dicoms")
 @click.option("--mode", "-m", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--source-dir", "-sdir", required=True, help="Where the dummy takes the dicoms")
 def retrieve(exam_id, dest_dir, mode, source_dir):
@@ -103,12 +103,12 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 
 ### TO DO : batch sur plusieurs examens
 
-def parse_series(series):
-    if not series:
-        return None
-    method, segment, series_str = series.split(":")
-    series_numbers = [int(n) for n in series_str.split(",")]
-    return {method: {segment: series_numbers}}
+# def parse_series(series):
+#     if not series:
+#         return None
+#     method, segment, series_str = series.split(":")
+#     series_numbers = [int(n) for n in series_str.split(",")]
+#     return {method: {segment: series_numbers}}
 
 def parse_acquisition(acquisition_id):
     if not acquisition_id:
@@ -124,16 +124,16 @@ def parse_method(method_id):
 
 @cli.command()
 @click.option("--exam-id", required=True)
-@click.option("--dest-dir", required=True, help="Folder with the dicom ")
+@click.option("--source-dir", required=True, help="Folder with the dicom ")
 @click.option("--method-id", required=True, help="method-id gathers the method's name and parameters needed by the method. Example : --method-name method_id:param1:param_2:param_3 ")
 @click.option("--acquisition-id", required=True, help="Acquisition parameters.Usage: acquisition:segment:side")
 @click.option("--output-dir", required=True, help="Fodler where the report will be stored.")
+@click.option("--series", required=True, help="Acquisition parameters.Usage: --series 1,2,3")
 # @click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--lang", default="en")
 # @click.option("--with-antecedent", is_flag=True, help="Inclure l'antécédent le plus récent dans le rapport.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
-@click.option("--series", help="Acquisition parameters.Usage: acquisition:segment:side")
-def process(exam_id, dest_dir, method_id, acquisition_id, output_dir, lang, series, dev):
+def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev):
     """Chaîne retrieve → apply-method → report, chemin heureux."""
     try:
         result = run_pipeline(
@@ -141,15 +141,15 @@ def process(exam_id, dest_dir, method_id, acquisition_id, output_dir, lang, seri
             report_generator=MedicalReportGenerator(),
             catalog=DummyExamCatalog(),
             # with_antecedent=with_antecedent,
-            dest_dir=dest_dir,
+            dest_dir=source_dir,
             # mode=DeidentificationMode(mode),
             acquisition_id=parse_acquisition(acquisition_id),
             method_id=parse_method(method_id),
             output_dir=output_dir,
+            series=series
             exam_id=exam_id,
             lang=lang,
             dev=dev,
-            series=parse_series(series)
         )
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)

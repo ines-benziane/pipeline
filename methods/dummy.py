@@ -10,7 +10,7 @@ class DummyMethod(Method):
     version = "1.1"
     comparability_criteria = []
 
-    def run(self, exam_dir, exam_id, workdir, segment, params):
+    def run(self, exam_dir, exam_id, workdir, segment, series, params):
         data = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
         for field in ("patient_name", "birth_date", "referring_doctor"):
