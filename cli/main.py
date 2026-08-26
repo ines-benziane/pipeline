@@ -172,7 +172,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
 @click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
 @click.option("--decision", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
 @click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
-def resume(job_file,  decision, qc):
+def resume(job_file,  decision, quality_check):
     data = json.loads(Path(job_file).read_text(encoding="utf-8"))
     try:
         result = resume_pipeline (
@@ -184,7 +184,7 @@ def resume(job_file,  decision, qc):
             method_id = data["method_id"],
             workdir = data["workdir"],
             checkpoint = data["checkpoint"],
-            qc = qc, 
+            qc = quality_check, 
             source_dir = data["source_dir"], 
             series = data["series"]
             )

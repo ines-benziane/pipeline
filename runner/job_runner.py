@@ -55,9 +55,9 @@ def run_job(job, dev=False) :
             result = Result(json_path, auto_valid=True, provenance={"name": method.name, "version": method.version})
         elif job.checkpoint == "segmentation":
             echo_times_record = json.loads((Path(job.workdir) / "echo_times_record.json").read_text())
+            exam_date = echo_times_record["exam_date"]
             metadata = {"exam_id": job.exam_id, "exam_date": exam_date, "segment": job.segment,
                         "method": method.name, "version": method.version, "acquisition": "1.0", "biomarker": "FF"}
-            exam_date = echo_times_record["exam_date"]
             ffmap = volume.read(Path(job.workdir) / "ffmap.mha")
             roi = [volume.read(Path(job.workdir) / "roi.mha")]
             labels_obj = io.read_labels(Path(job.workdir) / "labels.txt")
