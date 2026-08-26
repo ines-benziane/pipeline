@@ -46,8 +46,8 @@ def run_job(job, dev=False) :
         if job.checkpoint == "mutools":
             echo_times_record = json.loads((Path(job.workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
-            ffmap = volume.read(Path(job.workdir) / "ffmap.mha" )
-            volumes = [volume.read(Path(job.workdir) / f"echo_{i}.mha") for i in range(3)]
+            ffmap = volume.read(Path(job.workdir) / "ffmap.mha")
+            volumes = [volume.read(Path(job.workdir) / f"echo_{i}.mha", as_complex=True) for i in range(3)]
             rois, labels, exam_date = method.segmentation(volumes, job.segment, job.exam_id, job.qc, exam_date, job.workdir)
             metadata = {"exam_id": job.exam_id, "exam_date": exam_date, "segment": job.segment,
                         "method": method.name, "version": method.version, "acquisition": "1.0", "biomarker": "FF"}
