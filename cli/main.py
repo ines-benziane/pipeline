@@ -191,4 +191,6 @@ def resume(job_file,  decision, quality_check):
         
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)
-        sys.exit(1)
+    if e.__cause__:
+        click.echo(f"Cause: {e.__cause__}", err=True)
+    sys.exit(1)
