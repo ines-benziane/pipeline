@@ -10,6 +10,21 @@ from enum import Enum
 from pathlib import Path
 
 
+class JobException(Exception):
+    """Base class for raising Job exception that indicates Job's state"""
+
+class QCMutoolsException(JobException):
+    """Job purposely suspended to do the QC"""
+    def __init__(self):
+        super().__init__(f"Job suspended after mutools for QC")
+
+
+class QCMuSegAIException(JobException):
+    """Job purposely suspended to do the QC"""
+    def __init__(self):
+        super().__init__(f"Job suspended after automatique segmentation for QC")
+
+
 class JobState(Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
@@ -33,4 +48,5 @@ class Job:
     other_params:  list[str] | None = None
     exam_date: str | None = None 
     qc: bool | None = False
+    checkpoint: str | None = None
 

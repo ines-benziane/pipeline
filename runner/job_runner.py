@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 
 from runner import job_store, methods_registry
-from runner.job import JobState
+from runner.job import JobState, QCMutoolsException, QCMuSegAIException
 
 WORKDIR_ROOT = Path("workdirs")
 RESULT_DIR = Path("data") / "results"
@@ -38,7 +38,19 @@ def run_job(job, dev=False) :
     job_store.save(job)
     try:
         result = method.run(job.exam_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc)
-        
+
+    except QCMutoolsException as e:
+        job.state = JobState.SUSPENDED 
+        job.checkpoint = "mutools"
+        job_store.save(job)
+        return(job)
+    
+    except QCMuSegAIException as e:
+        job.state = JobState.SUSPENDED
+        job.checkpoint = "segmentation"
+        job_store.save(job)
+        return(job)
+    
     except Exception:
         job.state = JobState.FAILED
         job_store.save(job)

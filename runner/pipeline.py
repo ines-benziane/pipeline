@@ -47,7 +47,7 @@
 
 import yaml
 from pathlib import Path
-from runner.job import Job 
+from runner.job import Job, JobState
 from runner.job_runner import run_job, RESULT_DIR
 
 def run_pipeline(
@@ -72,6 +72,8 @@ def run_pipeline(
             yaml.dump(series, f)
     job = Job(exam_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params, exam_date=exam_date, qc = qc)
     run_job(job, dev)
+    if job.state == JobState.SUSPENDED:
+        return {"exam_id": exam_id, "job_id": job.job_id, "status":"suspended"}
     exam_ids_for_report = [exam_id]
     # if with_antecedent :
     #     related = catalog.find_related_exams(exam_id)

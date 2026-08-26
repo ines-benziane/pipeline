@@ -3,14 +3,25 @@
 import sys
 
 import click
+import json
 
+from pathlib import Path
 from adapters.medical_report_generator import MedicalReportGenerator
 from methods.dummy import DummyMethod
 from methods.dixon3pt import Dixon3ptMethod
+
 from runner import methods_registry
 from runner.job import Job
 from runner.report_generator import ReportGenerationError
 from runner.job_runner import run_job
+from runner.exam_retriever import DeidentificationMode
+from runner.pipeline import run_pipeline
+from runner.resume import resume_pipeline
+
+from adapters.dummy_exam_catalog import DummyExamCatalog
+from adapters.dummy_exam_retriever import DummyExamRetriever
+from adapters.file_result_index import FileResultIndex
+
 
 methods_registry.register(DummyMethod)
 methods_registry.register(Dixon3ptMethod)
@@ -67,7 +78,6 @@ def report(exam_id, data_dir, output_dir, lang):
         sys.exit(1)
     click.echo(str(pdf_path))
 
-from adapters.dummy_exam_catalog import DummyExamCatalog
 
 @cli.command()
 @click.option("--exam-id", "-id", required=True, help="Exam of interest")
@@ -85,11 +95,6 @@ def exams(exam_id, show_series, related_exams):
             click.echo(f"{related.exam_id}  {related.patient_name}  {related.exam_date}")
     else :
         click.echo("Precise if you want to see this exam's series (--show-series) or the exams related (--related_exams).")
-
-from adapters.dummy_exam_retriever import DummyExamRetriever
-from runner.exam_retriever import DeidentificationMode
-from adapters.file_result_index import FileResultIndex
-from runner.pipeline import run_pipeline
 
 @cli.command()
 @click.option("--exam-id", "-id", required=True, help="Exam of interest")
@@ -135,7 +140,7 @@ def parse_method(method_id):
 @click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
 @click.option("--quality-check", "-qc", is_flag=True, help="If given, quality check is activated. ")
 def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check):
-    """Chaîne retrieve → apply-method → report, chemin heureux."""
+    """from retrieval to one section of the report"""
     try:
         result = run_pipeline(
             # result_index=FileResultIndex(),
@@ -157,4 +162,30 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)
         sys.exit(1)
-    click.echo(str(result["pdf_path"]))
+    if result.get("status") == "suspended":
+        click.echo(f"Job {result['job_id']} suspended for QC review")
+    else:
+       click.echo(str(result["pdf_path"]))
+
+
+@cli.command
+@click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
+@click.option("--decision", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
+def resume(job_file,  decision):
+    data = json.loads(Path(job_file).read_text(encoding="uft-8"))
+    try:
+        result = resume_pipeline(
+            job_id = data["job_id"],
+            decision = decision, 
+            status = data["state"]
+            exam_id = data["exam_id"],
+            segment = data["segment"],
+            method_id = data["method_id"],
+            workdir = data["workdir"],
+            checkpoint = data["checkpoint"],
+
+
+        )
+    except Exception as e:
+        click.echo(f"Fail cmd process: {e}", err=True)
+        sys.exit(1)
