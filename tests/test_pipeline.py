@@ -14,7 +14,7 @@ class NotAutoValidMethod(Method):
     version = "0"
     comparability_criteria = []
 
-    def run(self, exam_dir, workdir, segment):
+    def run(self, source_dir, workdir, segment):
         output = Path(workdir) / "not_auto_valid.json"
         output.write_text("{}", encoding="utf-8")
         return Result(

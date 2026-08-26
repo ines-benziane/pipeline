@@ -38,7 +38,7 @@ def _new_job_id() -> str:
 @dataclass
 class Job:
     exam_id: str
-    exam_dir: str
+    source_dir: str
     segment: str
     method_id: str
     series: list[int]

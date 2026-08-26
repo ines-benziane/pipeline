@@ -15,7 +15,7 @@ import pytest
 from methods.dixon3pt import Dixon3ptMethod
 
 FIXTURE = Path(__file__).parent / "fixtures" / "dixon3pt_golden.json"
-EXAM_DIR = "dixon_data_test_CL2LD260112"
+source_dir = "dixon_data_test_CL2LD260112"
 
 
 def _muscles_by_key(muscles):
@@ -23,7 +23,7 @@ def _muscles_by_key(muscles):
 
 
 def test_dixon3pt_matches_golden_reference(tmp_path):
-    result = Dixon3ptMethod().run(EXAM_DIR, tmp_path, "legs")
+    result = Dixon3ptMethod().run(source_dir, tmp_path, "legs")
     produced = json.loads(Path(result.results).read_text(encoding="utf-8"))
     golden = json.loads(FIXTURE.read_text(encoding="utf-8"))
 

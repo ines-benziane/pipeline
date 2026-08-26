@@ -343,7 +343,7 @@ Les deux scripts actuels deviennent alors deux appels à `fetch` avec des critè
 
 ## Étape 5 — Branchement complet de `run`
 
-**Périmètre :** `run` récupère réellement les DICOM via `dicom` avant d'appeler la méthode. Le trou actuel (on passe un `exam_id` là où le contrat attend un `exam_dir`) se referme.
+**Périmètre :** `run` récupère réellement les DICOM via `dicom` avant d'appeler la méthode. Le trou actuel (on passe un `exam_id` là où le contrat attend un `source_dir`) se referme.
 
 **Estimation :** 2 h
 **Dépend de :** étapes 2 et 4

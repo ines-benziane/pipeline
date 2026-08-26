@@ -51,7 +51,7 @@ class FakeMethod(Method):
     version = "0"
     comparability_criteria = []
 
-    def run(self, exam_dir, workdir, segment):
+    def run(self, source_dir, workdir, segment):
         output = Path(workdir) / "fake_result.json"
         output.write_text("{}", encoding="utf-8")
         return Result(results=output, auto_valid=True, provenance={"name": self.name})

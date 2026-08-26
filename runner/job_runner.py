@@ -5,8 +5,13 @@ If any exception raised : job's state becomes FAILED --Later : and the crash mod
 
 import shutil
 import logging
+import json
 from pathlib import Path
 
+from mutools.io import volume
+from mutools import io
+
+from runner.method import Result
 from runner import job_store, methods_registry
 from runner.job import JobState, QCMutoolsException, QCMuSegAIException
 
@@ -36,8 +41,31 @@ def run_job(job, dev=False) :
     logging.getLogger("docker").setLevel(logging.WARNING)
 
     job_store.save(job)
-    try:
-        result = method.run(job.exam_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc)
+
+    try: 
+        if job.checkpoint == "mutools":
+            echo_times_record = json.loads((Path(job.workdir) / "echo_times_record.json").read_text())
+            exam_date = echo_times_record["exam_date"]
+            ffmap = volume.read(Path(job.workdir) / "ffmap.mha" )
+            volumes = [volume.read(Path(job.workdir) / f"echo_{i}.mha") for i in range(3)]
+            rois, labels, exam_date = method.segmentation(volumes, job.segment, job.exam_id, job.qc, exam_date, job.workdir)
+            metadata = {"exam_id": job.exam_id, "exam_date": exam_date, "segment": job.segment,
+                        "method": method.name, "version": method.version, "acquisition": "1.0", "biomarker": "FF"}
+            json_path = method.write_results(ffmap, rois, labels, metadata, job.workdir)
+            result = Result(json_path, auto_valid=True, provenance={"name": method.name, "version": method.version})
+        elif job.checkpoint == "segmentation":
+            echo_times_record = json.loads((Path(job.workdir) / "echo_times_record.json").read_text())
+            metadata = {"exam_id": job.exam_id, "exam_date": exam_date, "segment": job.segment,
+                        "method": method.name, "version": method.version, "acquisition": "1.0", "biomarker": "FF"}
+            exam_date = echo_times_record["exam_date"]
+            ffmap = volume.read(Path(job.workdir) / "ffmap.mha")
+            roi = [volume.read(Path(job.workdir) / "roi.mha")]
+            labels_obj = io.read_labels(Path(job.workdir) / "labels.txt")
+            labels = dict(zip(labels_obj.indices, labels_obj.descriptions))
+            json_path = method.write_results(ffmap, roi, labels, metadata, job.workdir)
+            result = Result(json_path, auto_valid=True, provenance={"name": method.name, "version": method.version})
+        else:
+            result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc)
 
     except QCMutoolsException as e:
         job.state = JobState.SUSPENDED 
@@ -66,17 +94,3 @@ def run_job(job, dev=False) :
         job.state = JobState.SUSPENDED
     job_store.save(job)
     return job
-
-
-# if __name__ == "__main__":
-#     from methods.dummy import DummyMethod
-#     from runner.job import Job
-#     methods_registry.register(DummyMethod)
-#     job = Job( exam_dir="dest_dir", exam_id="exam_bidon", segment="legs", method_id="dummy")
-#     run_job(job)
-#     print(job)
-
-# aujourd'hui 1 cmd = 1 section de report 
-# comment passer de plusieurs folder avec des noms aléatoire à un report ? Faire une recherche dans tous les dossiers ou avoir 
-# un dossier qui regroupe. Si on a un dossier qui regroupe on a un problème : si ça ne s'est pas passé, il sera la, donc on relance
-# et il y aura deux dossiers.. Mieux vaut faire une recherche avec report 

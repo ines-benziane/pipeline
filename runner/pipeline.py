@@ -70,7 +70,7 @@ def run_pipeline(
     if series:
         with open(Path(source_dir) / "series_selection.yml", "w") as f:
             yaml.dump(series, f)
-    job = Job(exam_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params, exam_date=exam_date, qc = qc)
+    job = Job(source_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params, exam_date=exam_date, qc = qc)
     run_job(job, dev)
     if job.state == JobState.SUSPENDED:
         return {"exam_id": exam_id, "job_id": job.job_id, "status":"suspended"}

@@ -171,21 +171,24 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
 @cli.command
 @click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
 @click.option("--decision", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
-def resume(job_file,  decision):
-    data = json.loads(Path(job_file).read_text(encoding="uft-8"))
+@click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
+def resume(job_file,  decision, qc):
+    data = json.loads(Path(job_file).read_text(encoding="utf-8"))
     try:
-        result = resume_pipeline(
+        result = resume_pipeline (
             job_id = data["job_id"],
             decision = decision, 
-            status = data["state"]
+            state = data["state"],
             exam_id = data["exam_id"],
             segment = data["segment"],
             method_id = data["method_id"],
             workdir = data["workdir"],
             checkpoint = data["checkpoint"],
-
-
-        )
+            qc = qc, 
+            source_dir = data["source_dir"], 
+            series = data["series"]
+            )
+        
     except Exception as e:
         click.echo(f"Fail cmd process: {e}", err=True)
         sys.exit(1)

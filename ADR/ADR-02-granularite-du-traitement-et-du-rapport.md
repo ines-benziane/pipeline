@@ -69,7 +69,7 @@ Il n'existe pas de commande unique « de bout en bout ». Un utilisateur qui veu
 
 Un même examen contient plusieurs régions anatomiques (jambes, cuisses). La méthode **ne peut pas** déduire laquelle traiter : c'est une instruction de l'utilisateur, pas une propriété des données.
 
-En conséquence, la signature du contrat devient `run(exam_dir, workdir, segment)`, et l'objet `Job` porte un champ `segment`.
+En conséquence, la signature du contrat devient `run(source_dir, workdir, segment)`, et l'objet `Job` porte un champ `segment`.
 
 > *Nuance importante :* la méthode reste autonome pour identifier les **rôles de séries** (quelles séries sont les Dixon, quelles séries sont les msme) — cette information est déductible des en-têtes DICOM. Elle ne l'est pas pour la région anatomique demandée.
 
