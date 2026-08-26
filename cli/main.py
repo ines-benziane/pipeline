@@ -189,8 +189,13 @@ def resume(job_file,  decision, quality_check):
             series = data["series"]
             )
         
+    # except Exception as e:
+    #     click.echo(f"Fail cmd process: {e}", err=True)
+    #     if e.__cause__:
+    #         click.echo(f"Cause: {e.__cause__}", err=True)
+    #     sys.exit(1)
+
     except Exception as e:
-        click.echo(f"Fail cmd process: {e}", err=True)
-        if e.__cause__:
-            click.echo(f"Cause: {e.__cause__}", err=True)
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
