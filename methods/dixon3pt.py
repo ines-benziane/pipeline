@@ -38,6 +38,7 @@ class Dixon3ptMethod(Method) :
         mag_2 = np.nan_to_num(mag_2)
 
         transform_flat = [v for row in mag_1.transform[:3] for v in row[:3]]
+        spacing = mag_1.spacing[:3]
         img_1 = Image(mag_1, transform=transform_flat)
         img_2 = Image(mag_2, transform=transform_flat)
 
