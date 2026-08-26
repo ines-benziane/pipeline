@@ -44,6 +44,7 @@ class Dixon3ptMethod(Method) :
 
         model = MODEL_BY_SEGMENT[segment]
         try :
+            print("shape", img_1.shape, "spacing", img_1.spacing, "origin", img_1.origin, "transform", img_1.transform)
             rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
         except Exception as e:
             raise RuntimeError(f"Segmentation failed for {exam_id} (segment={segment})") from e
