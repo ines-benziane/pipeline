@@ -49,7 +49,9 @@ class Dixon3ptMethod(Method) :
             raise RuntimeError(f"Segmentation failed for {exam_id} (segment={segment})") from e
         labels = dict(zip(labels.indices, labels.descriptions))
         if qc :
-            volume.write(Path(workdir) / "roi.mha", rois[0])
+            roi_obj = rois[0]
+            roi_obj.transform =[roi_obj.transform[i:i+3] for i in range(0, len(roi_obj.transform), 3)]
+            volume.write(Path(workdir) / "roi.mha", roi_obj)
             io.write_labels(Path(workdir) / "labels.txt", labels)
             raise QCMuSegAIException
         return rois, labels, exam_date
