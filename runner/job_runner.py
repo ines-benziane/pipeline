@@ -68,12 +68,14 @@ def run_job(job, dev=False) :
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc)
 
     except QCMutoolsException as e:
+        print(e)
         job.state = JobState.SUSPENDED 
         job.checkpoint = "mutools"
         job_store.save(job)
         return(job)
     
     except QCMuSegAIException as e:
+        print(e)
         job.state = JobState.SUSPENDED
         job.checkpoint = "segmentation"
         job_store.save(job)
