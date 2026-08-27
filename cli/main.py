@@ -11,7 +11,7 @@ from methods.dummy import DummyMethod
 from methods.dixon3pt import Dixon3ptMethod
 
 from runner import methods_registry
-from runner.job import Job
+from runner.job import Job, JobState
 from runner.report_generator import ReportGenerationError
 from runner.job_runner import run_job
 from runner.exam_retriever import DeidentificationMode
@@ -194,6 +194,13 @@ def resume(job_file,  decision, quality_check):
         if e.__cause__:
             click.echo(f"Cause: {e.__cause__}", err=True)
         sys.exit(1)
+
+    if result.state == JobState.SUSPENDED:
+        click.echo(f"Job {result.job_id} suspended at checkpoint '{result.checkpoint}'")
+    elif result.state == JobState.RESULTS_READY:
+        click.echo(f"Job {result.job_id} finished — results ready.")
+    else:
+        click.echo(f"Job {result.job_id} state: {result.state.value}")
 
     # except Exception as e:
     #     import traceback
