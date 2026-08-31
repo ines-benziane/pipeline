@@ -13,10 +13,13 @@ from mutools import io
 
 from runner.method import Result
 from runner import job_store, methods_registry
-from runner.job import JobState, QCMutoolsException, QCMuSegAIException
+from runner.job import JobState, MutoolsCheckpoint, SegmentationCheckpoint
+from runner.progress import announce
 
 WORKDIR_ROOT = Path("workdirs")
 RESULT_DIR = Path("data") / "results"
+
+log = logging.getLogger(__name__)
 
 def make_workdir(job_id: str) -> Path:
     workdir = WORKDIR_ROOT / job_id
@@ -41,8 +44,9 @@ def run_job(job, dev=False) :
     logging.getLogger("docker").setLevel(logging.WARNING)
 
     job_store.save(job)
+    announce(f"Task {job.job_id} started - {job.method_id} / {job.segment}")
 
-    try: 
+    try:
         if job.checkpoint == "mutools":
             echo_times_record = json.loads((Path(job.workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
@@ -67,21 +71,24 @@ def run_job(job, dev=False) :
         else:
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc)
 
-    except QCMutoolsException as e:
-        print(e)
-        job.state = JobState.SUSPENDED 
+    except MutoolsCheckpoint as e:
+        log.info("job %s suspended for QC (%s)", job.job_id, e)
+        announce(f"Task {job.job_id} paused for QC (checkpoint: mutools)")
+        job.state = JobState.SUSPENDED
         job.checkpoint = "mutools"
         job_store.save(job)
         return(job)
-    
-    except QCMuSegAIException as e:
-        print(e)
+
+    except SegmentationCheckpoint as e:
+        log.info("job %s suspended for QC (%s)", job.job_id, e)
+        announce(f"Task {job.job_id} paused for QC (checkpoint: segmentation)")
         job.state = JobState.SUSPENDED
         job.checkpoint = "segmentation"
         job_store.save(job)
         return(job)
-    
+
     except Exception:
+        announce(f"Task {job.job_id} failed")
         job.state = JobState.FAILED
         job_store.save(job)
         raise
@@ -90,9 +97,10 @@ def run_job(job, dev=False) :
         root_logger.setLevel(previous_level)
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy(result.results, RESULT_DIR / result.results.name) #results given by method (ex json_output)
-    if result.auto_valid: #not implemented yet 
+    if result.auto_valid: #not implemented yet
         job.state = JobState.RESULTS_READY
-    else : 
+    else :
         job.state = JobState.SUSPENDED
     job_store.save(job)
+    announce(f"Task {job.job_id} done - {result.results.name}")
     return job

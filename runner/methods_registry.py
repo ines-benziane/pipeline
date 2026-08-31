@@ -1,3 +1,5 @@
+from runner.errors import MethodNotFoundError
+
 _REGISTRY: dict[str, type] = {}
 
 def register(method_class):
@@ -7,7 +9,7 @@ def register(method_class):
 def get(name):
     """Retrieve a method by its name"""
     if name not in _REGISTRY:
-        raise KeyError(f"Unknown method: {name}")
+        raise MethodNotFoundError(name)
     method_class = _REGISTRY[name]
     return method_class()
 

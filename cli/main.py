@@ -1,9 +1,11 @@
 ### TO DO : batch sur plusieurs examens
 
+import functools
+import json
+import logging
 import sys
 
 import click
-import json
 
 from pathlib import Path
 from adapters.medical_report_generator import MedicalReportGenerator
@@ -11,8 +13,8 @@ from methods.dummy import DummyMethod
 from methods.dixon3pt import Dixon3ptMethod
 
 from runner import methods_registry
+from runner.errors import PipelineError
 from runner.job import Job, JobState
-from runner.report_generator import ReportGenerationError
 from runner.job_runner import run_job
 from runner.exam_retriever import DeidentificationMode
 from runner.pipeline import run_pipeline
@@ -26,11 +28,42 @@ from adapters.file_result_index import FileResultIndex
 methods_registry.register(DummyMethod)
 methods_registry.register(Dixon3ptMethod)
 
+log = logging.getLogger(__name__)
+
+
+def cli_barrier(func):
+    """Single error boundary for a CLI command.
+
+    PipelineError     -> clean message (+ cause + hint) on stderr, exit 1. No traceback.
+    KeyboardInterrupt -> exit 130.
+    anything else      -> full traceback via logging, terse message, exit 2.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except PipelineError as e:
+            click.echo(f"Error: {e}", err=True)
+            if e.__cause__:
+                click.echo(f"  caused by: {e.__cause__}", err=True)
+            if e.hint:
+                click.echo(f"  hint: {e.hint}", err=True)
+            sys.exit(1)
+        except KeyboardInterrupt:
+            sys.exit(130)
+        except Exception:
+            log.exception("unexpected error in '%s'", func.__name__)
+            click.echo("Internal error - see the traceback above.", err=True)
+            sys.exit(2)
+    return wrapper
+
+
 @click.group()
 def cli():
     """MRI Pipeline - Study processing and report generation"""
 
 @cli.command()
+@cli_barrier
 def show_methods():
     """Lists available methods."""
     for name, cls in methods_registry.list_methods().items():
@@ -43,6 +76,7 @@ def show_methods():
 @click.option("--segment", multiple=True,
               help="Segment à traiter. Répétable. Défaut: legs et thighs.")
 @click.option("--dry-run", is_flag=True, help="Montre ce qui serait fait, sans rien créer.")
+@cli_barrier
 def apply_method(exam_id, method, segment, dry_run):
     """Applies a method on a study, creates corresponding job (task) for tracking."""
     segments = list(segment) if segment else ["legs", "thighs"]
@@ -57,8 +91,10 @@ def apply_method(exam_id, method, segment, dry_run):
         job = Job(exam_id=exam_id, segment=seg, method_id=method)
         try:
             run_job(job)
-        except Exception as e:
-            click.echo(f"{job.job_id}  {seg}  Fail cmd run: {e}", err=True)
+        except PipelineError as e:
+            click.echo(f"{job.job_id}  {seg}  FAILED: {e}", err=True)
+            if e.hint:
+                click.echo(f"{job.job_id}  {seg}  hint: {e.hint}", err=True)
             continue
         click.echo(f"{job.job_id}  {seg}  {job.state.value}")
 
@@ -68,14 +104,11 @@ def apply_method(exam_id, method, segment, dry_run):
 @click.option("--data-dir", required=True, help="Dossier des résultats JSON (json_output).")
 @click.option("--output-dir", required=True, help="Dossier de sortie du rapport PDF.")
 @click.option("--lang", default="en", help="Langue du rapport.")
+@cli_barrier
 def report(exam_id, data_dir, output_dir, lang):
     """Generates report from already processed data. """
     generator = MedicalReportGenerator()
-    try:
-        pdf_path = generator.generate([exam_id], data_dir, output_dir, lang=lang)
-    except ReportGenerationError as e:
-        click.echo(f"Fail cmd report: {e}", err=True)
-        sys.exit(1)
+    pdf_path = generator.generate([exam_id], data_dir, output_dir, lang=lang)
     click.echo(str(pdf_path))
 
 
@@ -83,6 +116,7 @@ def report(exam_id, data_dir, output_dir, lang):
 @click.option("--exam-id", "-id", required=True, help="Exam of interest")
 @click.option("--show-series", "-s", is_flag=True, help="Show the series of this exam")
 @click.option("--related-exams", "-r", is_flag=True, help="Show the others exams related to the one of interst")
+@cli_barrier
 def exams(exam_id, show_series, related_exams):
     """Show information about an exam."""
     dummy = DummyExamCatalog()
@@ -101,6 +135,7 @@ def exams(exam_id, show_series, related_exams):
 @click.option ("--dest-dir", "-dir", required=True, help="Directory for retrieved dicoms")
 @click.option("--mode", "-m", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--source-dir", "-sdir", required=True, help="Where the dummy takes the dicoms")
+@cli_barrier
 def retrieve(exam_id, dest_dir, mode, source_dir):
     """Retrieves an exam, de-identifies it and store it in destination directory"""
     dummy = DummyExamRetriever(source_dir)
@@ -117,7 +152,11 @@ def parse_series(series):
 def parse_acquisition(acquisition_id):
     if not acquisition_id:
         return None
-    acquisition, segment, side = acquisition_id.split(":")
+    parts = acquisition_id.split(":")
+    parts += [""] * (3 - len(parts))
+    segment, side, acquisition,= parts[:3]
+    side = side or None
+    acquisition = acquisition or None
     return {acquisition: {segment: side}}
 
 def parse_method(method_id):
@@ -139,61 +178,52 @@ def parse_method(method_id):
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
 @click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
 @click.option("--quality-check", "-qc", is_flag=True, help="If given, quality check is activated. ")
+@cli_barrier
 def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check):
     """from retrieval to one section of the report"""
-    try:
-        result = run_pipeline(
-            # result_index=FileResultIndex(),
-            report_generator=MedicalReportGenerator(),
-            catalog=DummyExamCatalog(),
-            # with_antecedent=with_antecedent,
-            source_dir=source_dir,
-            # mode=DeidentificationMode(mode),
-            acquisition_id=parse_acquisition(acquisition_id),
-            method_id=parse_method(method_id),
-            output_dir=output_dir,
-            series=parse_series(series),
-            exam_id=exam_id,
-            lang=lang,
-            dev=dev,
-            exam_date=date, 
-            qc = quality_check
-        )
-    except Exception as e:
-        click.echo(f"Fail cmd process: {e}", err=True)
-        sys.exit(1)
-    if result.get("status") == "suspended":
-        click.echo(f"Job {result['job_id']} suspended for QC review")
+    result = run_pipeline(
+        # result_index=FileResultIndex(),
+        report_generator=MedicalReportGenerator(),
+        catalog=DummyExamCatalog(),
+        # with_antecedent=with_antecedent,
+        source_dir=source_dir,
+        # mode=DeidentificationMode(mode),
+        acquisition_id=parse_acquisition(acquisition_id),
+        method_id=parse_method(method_id),
+        output_dir=output_dir,
+        series=parse_series(series),
+        exam_id=exam_id,
+        lang=lang,
+        dev=dev,
+        exam_date=date,
+        qc=quality_check,
+    )
+    if result.status == "suspended":
+        click.echo(f"Job {result.job_id} suspended for QC review (checkpoint: {result.checkpoint})")
     else:
-       click.echo(str(result["pdf_path"]))
+        click.echo(str(result.pdf_path))
 
 
 @cli.command
 @click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
 @click.option("--decision", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
 @click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
+@cli_barrier
 def resume(job_file,  decision, quality_check):
     data = json.loads(Path(job_file).read_text(encoding="utf-8"))
-    try:
-        result = resume_pipeline (
-            job_id = data["job_id"],
-            decision = decision, 
-            state = data["state"],
-            exam_id = data["exam_id"],
-            segment = data["segment"],
-            method_id = data["method_id"],
-            workdir = data["workdir"],
-            checkpoint = data["checkpoint"],
-            qc = quality_check, 
-            source_dir = data["source_dir"], 
-            series = data["series"]
-            )
-        
-    except Exception as e:
-        click.echo(f"Fail cmd process: {e}", err=True)
-        if e.__cause__:
-            click.echo(f"Cause: {e.__cause__}", err=True)
-        sys.exit(1)
+    result = resume_pipeline(
+        job_id=data["job_id"],
+        decision=decision,
+        state=data["state"],
+        exam_id=data["exam_id"],
+        segment=data["segment"],
+        method_id=data["method_id"],
+        workdir=data["workdir"],
+        checkpoint=data["checkpoint"],
+        qc=quality_check,
+        source_dir=data["source_dir"],
+        series=data["series"],
+    )
 
     if result.state == JobState.SUSPENDED:
         click.echo(f"Job {result.job_id} suspended at checkpoint '{result.checkpoint}'")
@@ -201,8 +231,3 @@ def resume(job_file,  decision, quality_check):
         click.echo(f"Job {result.job_id} finished — results ready.")
     else:
         click.echo(f"Job {result.job_id} state: {result.state.value}")
-
-    # except Exception as e:
-    #     import traceback
-    #     traceback.print_exc()
-    #     sys.exit(1)

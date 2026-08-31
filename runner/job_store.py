@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+from runner.errors import JobNotFoundError
 from runner.job import Job, JobState
 
 JOBS_DIR = Path("data") / "jobs"
@@ -28,7 +29,7 @@ def save(job):
 def load(job_id):
     path = JOBS_DIR / f"{job_id}.json"
     if not path.exists():
-        raise KeyError(f"Unknown job: {job_id}")
+        raise JobNotFoundError(job_id)
     
     data = json.loads(path.read_text(encoding="utf-8"))
 

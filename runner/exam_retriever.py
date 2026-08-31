@@ -3,7 +3,9 @@ from dataclasses import dataclass
 from enum import Enum
 from datetime import datetime
 
-class ExamRetrieverError(Exception):
+from runner.errors import PipelineError
+
+class ExamRetrieverError(PipelineError):
     """Base class for all retrieval failures."""
 
 class ExamNotFoundError(ExamRetrieverError):

@@ -10,19 +10,21 @@ from enum import Enum
 from pathlib import Path
 
 
-class JobException(Exception):
-    """Base class for raising Job exception that indicates Job's state"""
+class QCCheckpoint(Exception):
+    """Signal raised to suspend a job for quality control.
+    Does not heritates of PipelineError bc is not en error. 
+    """
 
-class QCMutoolsException(JobException):
-    """Job purposely suspended to do the QC"""
+class MutoolsCheckpoint(QCCheckpoint):
+    """Suspend after the mutools stage, before segmentation."""
     def __init__(self):
-        super().__init__(f"Job suspended after mutools for QC")
+        super().__init__("Job suspended after mutools for QC")
 
 
-class QCMuSegAIException(JobException):
-    """Job purposely suspended to do the QC"""
+class SegmentationCheckpoint(QCCheckpoint):
+    """Suspend after automatic segmentation, before results are written."""
     def __init__(self):
-        super().__init__(f"Job suspended after automatique segmentation for QC")
+        super().__init__("Job suspended after automatic segmentation for QC")
 
 
 class JobState(Enum):

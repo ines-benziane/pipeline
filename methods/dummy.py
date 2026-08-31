@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from runner.method import Method, Result
+from runner.progress import announce
 
 FIXTURE = Path(__file__).parent.parent / "tests" / "fixtures" / "exam_sample.json"
 
@@ -11,6 +12,7 @@ class DummyMethod(Method):
     comparability_criteria = []
 
     def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc=False):
+        announce(f"  building dummy result for {exam_id} / {segment}...")
         data = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
         for field in ("patient_name", "birth_date", "referring_doctor"):

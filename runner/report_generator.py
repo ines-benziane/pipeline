@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from runner.errors import PipelineError
 
 
-class ReportGenerationError(Exception):
+class ReportGenerationError(PipelineError):
     """Base class for all report generation failures."""
 
 

@@ -4,6 +4,7 @@ import pytest
 
 from methods.dummy import DummyMethod
 from runner import methods_registry
+from runner.errors import MethodNotFoundError
 from runner.job import Job, JobState
 from runner.method import Method, Result
 from runner.job_runner import run_job
@@ -25,7 +26,7 @@ class NotAutoValidMethod(Method):
 
 
 def test_registry_raises_on_unknown_method():
-    with pytest.raises(KeyError):
+    with pytest.raises(MethodNotFoundError):
         methods_registry.get("no_such_method")
 
 

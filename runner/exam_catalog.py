@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from runner.errors import PipelineError
 
-class ExamCatalogError(Exception):
+
+class ExamCatalogError(PipelineError):
     """Base class for all cataloging failures."""
 
 
@@ -17,6 +19,12 @@ class SourceUnavailableError(ExamCatalogError):
     def __init__(self, reason):
         super().__init__(f"Unavailable source : {reason}")
         self.reason = reason
+
+class NoExamForPatientError(ExamCatalogError):
+    """No exam matches the given patient name and date."""
+
+class AmbiguousExamError(ExamCatalogError):
+    """Several exams match the given patient name and date."""
 
 @dataclass
 class ExamSummary():

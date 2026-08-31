@@ -4,8 +4,15 @@ from pathlib import Path
 import json
 import numpy as np
 
+from runner.errors import (
+    DicomSelectionError,
+    DixonReconstructionError,
+    SegmentationError,
+    UnknownSegmentError,
+)
+from runner.job import MutoolsCheckpoint, SegmentationCheckpoint
 from runner.method import Method, Result
-from runner.job import QCMutoolsException, QCMuSegAIException
+from runner.progress import announce
 
 from dicomstack import DicomStack
 
@@ -41,19 +48,22 @@ class Dixon3ptMethod(Method) :
         img_1 = Image(mag_1, transform=transform_flat)
         img_2 = Image(mag_2, transform=transform_flat)
 
-        model = MODEL_BY_SEGMENT[segment]
+        try:
+            model = MODEL_BY_SEGMENT[segment]
+        except KeyError:
+            raise UnknownSegmentError(segment, MODEL_BY_SEGMENT) from None
         try :
-            print("shape", img_1.shape, "spacing", img_1.spacing, "origin", img_1.origin, "transform", img_1.transform)
+            announce("  running segmentation model...")
             rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
         except Exception as e:
-            raise RuntimeError(f"Segmentation failed for {exam_id} (segment={segment})") from e
+            raise SegmentationError(f"Segmentation failed for {exam_id} (segment={segment})") from e
         labels = dict(zip(labels.indices, labels.descriptions))
         if qc :
             roi_obj = rois[0]
             roi_obj.transform =[roi_obj.transform[i:i+3] for i in range(0, len(roi_obj.transform), 3)]
             volume.write(Path(workdir) / "roi.mha", roi_obj)
             io.write_labels(Path(workdir) / "labels.txt", labels)
-            raise QCMuSegAIException
+            raise SegmentationCheckpoint
         return rois, labels, exam_date
 
     def write_results(self, ffmap, rois, labels, metadata, workdir):
@@ -69,22 +79,27 @@ class Dixon3ptMethod(Method) :
             stack = stack(SeriesNumber=series, StudyDate=date)
         else :
             stack = stack(SeriesNumber=series)
-        if not stack : #erreur possible
-            raise ValueError(f"No dicom data found in {source_dir}")
+        if not stack :
+            raise DicomSelectionError(
+                f"No DICOM series matching {series} in {source_dir}",
+                hint="check --series and --date",
+            )
         exam_date = stack.single("StudyDate")
-        #erreur = a changer en try except 
+        announce("  parsing Dixon DICOM series...")
         try :
             info, volumes = parse_dicom_dixon_default(stack, npoint=3)
             echo_times = info["echo_times"]
-            print (echo_times)
         except Exception as exc:
-            raise ValueError(f"Could not parse Dixon DICOM data in {source_dir}") from exc
+            raise DicomSelectionError(
+                f"Selected series in {source_dir} are not a readable 3-point Dixon acquisition"
+            ) from exc
         mask = make_mask(*volumes, axis=2, threshold=10)
+        announce("  Dixon 3pt reconstruction...")
         try :
             water_map, fat_map, delta_b0, r2_star = dixon_3pt(echo_times, *volumes, mask = mask, force_reconstruction=False, global_swap=False)
             ffmap = make_ffmap(water_map, fat_map, mask=mask)
         except Exception as exc:
-            raise RuntimeError(f"Dixon 3pt reconstruction failed for {source_dir}") from exc
+            raise DixonReconstructionError(f"Dixon 3pt reconstruction failed for {source_dir}") from exc
 
         if qc:
             qc = quality_check_volumes(ffmap)
@@ -96,7 +111,7 @@ class Dixon3ptMethod(Method) :
             (Path(workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
             for i, vol in enumerate(volumes):
                 volume.write(Path(workdir) / f"echo_{i}.mha", vol)
-            raise QCMutoolsException
+            raise MutoolsCheckpoint
         
         rois, labels = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir)
 

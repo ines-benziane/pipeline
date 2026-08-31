@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 
-class ResultIndexError(Exception):
+from runner.errors import PipelineError
+
+class ResultIndexError(PipelineError):
     """Base class for all result index failures."""
 
 class ResultIndex(ABC):
