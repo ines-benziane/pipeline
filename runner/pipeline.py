@@ -21,11 +21,13 @@ class PipelineOutcome:
     pdf_path: Path | None = None
     job_id: str | None = None
     checkpoint: str | None = None
+    qc_dir: Path | None = None
+
 
 def run_pipeline(
         report_generator, catalog, source_dir, acquisition_id, method_id,
         output_dir, series, exam_id=None, patient_name=None, exam_date=None,
-        dev=False, qc=False,*, lang="en"
+        dev=False, qc=False, qc_dir=None, *, lang="en"
         ):
     if not exam_id :
         exams = catalog.find_exams(patient_name)
@@ -40,14 +42,16 @@ def run_pipeline(
 
     acquisition, seg_dict = next(iter(acquisition_id.items()))
     segment_name, side = next(iter(seg_dict.items()))
-
     method_name, other_params = next(iter(method_id.items()))
+    if qc_dir:
+        qc_dir = Path(qc_dir)
+        qc_dir.mkdir(parents=True, exist_ok=True)
     if series:
         with open(Path(source_dir) / "series_selection.yml", "w") as f:
             yaml.dump(series, f)
     job = Job(source_dir=source_dir, exam_id=exam_id, segment=segment_name,
               method_id=method_name, series=series, other_params=other_params,
-              exam_date=exam_date, qc = qc)
+              exam_date=exam_date, qc = qc, qc_dir = qc_dir)
     run_job(job, dev)
     if job.state == JobState.SUSPENDED:
         return PipelineOutcome(
@@ -55,6 +59,7 @@ def run_pipeline(
             status="suspended",
             job_id=job.job_id,
             checkpoint=job.checkpoint,
+            qc_dir=job.qc_dir
         )
     exam_ids_for_report = [exam_id]
     # if with_antecedent :

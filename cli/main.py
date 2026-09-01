@@ -178,8 +178,10 @@ def parse_method(method_id):
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
 @click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
 @click.option("--quality-check", "-qc", is_flag=True, help="If given, quality check is activated. ")
+@click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, dfault one is data/qc/job_id")
+@click.option("--open-qc", "-oqc", is_flag=True, help="Opens QC folder")
 @cli_barrier
-def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check):
+def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check, quality_check_dir, open_qc):
     """from retrieval to one section of the report"""
     result = run_pipeline(
         # result_index=FileResultIndex(),
@@ -197,23 +199,27 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
         dev=dev,
         exam_date=date,
         qc=quality_check,
+        qc_dir=quality_check_dir
     )
     if result.status == "suspended":
         click.echo(f"Job {result.job_id} suspended for QC review (checkpoint: {result.checkpoint})")
+        if open_qc and result.qc_dir:
+            click.launch(str(result.qc_dir))
     else:
         click.echo(str(result.pdf_path))
 
-
 @cli.command
 @click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
-@click.option("--decision", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
+@click.option("--decision_status", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
+@click.option("--comment", "-com", help="User comment on the QC, will appear in the Medical report. Example : 'SAR muscle segmentation failed : must not take it into account' ")
+@click.option("--tag", "-t", help="For common errors, use tag to caracterize it fastly. Must be in this list of tags : swap, muscle_off")
 @click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
 @cli_barrier
-def resume(job_file,  decision, quality_check):
+def resume(job_file,  decision_status, quality_check, comment, tag):
     data = json.loads(Path(job_file).read_text(encoding="utf-8"))
     result = resume_pipeline(
         job_id=data["job_id"],
-        decision=decision,
+        decision_status=decision_status,
         state=data["state"],
         exam_id=data["exam_id"],
         segment=data["segment"],
@@ -223,6 +229,9 @@ def resume(job_file,  decision, quality_check):
         qc=quality_check,
         source_dir=data["source_dir"],
         series=data["series"],
+        tag=tag, 
+        comment=comment
+
     )
 
     if result.state == JobState.SUSPENDED:

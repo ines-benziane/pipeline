@@ -8,23 +8,7 @@ import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-
-
-class QCCheckpoint(Exception):
-    """Signal raised to suspend a job for quality control.
-    Does not heritates of PipelineError bc is not en error. 
-    """
-
-class MutoolsCheckpoint(QCCheckpoint):
-    """Suspend after the mutools stage, before segmentation."""
-    def __init__(self):
-        super().__init__("Job suspended after mutools for QC")
-
-
-class SegmentationCheckpoint(QCCheckpoint):
-    """Suspend after automatic segmentation, before results are written."""
-    def __init__(self):
-        super().__init__("Job suspended after automatic segmentation for QC")
+from datetime import datetime
 
 
 class JobState(Enum):
@@ -35,7 +19,7 @@ class JobState(Enum):
     FAILED = "failed"
 
 def _new_job_id() -> str:
-    return uuid.uuid4().hex[:6]
+    return f"{datetime.now():%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:4]}"
 
 @dataclass
 class Job:
@@ -44,11 +28,15 @@ class Job:
     segment: str
     method_id: str
     series: list[int]
-    job_id: str = field(default_factory=_new_job_id)
     state: JobState = JobState.PENDING
+    job_id: str | None = None
     workdir: Path | None = None
     other_params:  list[str] | None = None
     exam_date: str | None = None 
     qc: bool | None = False
     checkpoint: str | None = None
+    qc_dir: Path | None = None
 
+    def __post_init__(self):
+        if self.job_id is None:
+            self.job_id = f"{self.exam_id}-{_new_job_id()}"

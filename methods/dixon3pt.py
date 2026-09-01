@@ -10,8 +10,7 @@ from runner.errors import (
     SegmentationError,
     UnknownSegmentError,
 )
-from runner.job import MutoolsCheckpoint, SegmentationCheckpoint
-from runner.method import Method, Result
+from runner.method import Method, Result, QCCheckpoint, QCUserDecisions
 from runner.progress import announce
 
 from dicomstack import DicomStack
@@ -38,7 +37,7 @@ class Dixon3ptMethod(Method) :
     version = "1.0"
     comparability_criteria = []
 
-    def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir):
+    def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None):
         mag_1 = abs(volumes[0])
         mag_2 = abs(volumes[1])
         mag_1 = np.nan_to_num(mag_1)
@@ -63,16 +62,19 @@ class Dixon3ptMethod(Method) :
             roi_obj.transform =[roi_obj.transform[i:i+3] for i in range(0, len(roi_obj.transform), 3)]
             volume.write(Path(workdir) / "roi.mha", roi_obj)
             io.write_labels(Path(workdir) / "labels.txt", labels)
-            raise SegmentationCheckpoint
+            if qc_dir:
+                volume.write(Path(qc_dir) / "roi.mha", roi_obj)
+                io.write_labels(Path(qc_dir) / "labels.txt", labels)
+            raise QCCheckpoint("segmentation")
         return rois, labels, exam_date
 
-    def write_results(self, ffmap, rois, labels, metadata, workdir):
+    def write_results(self, ffmap, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
         table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
         exam = parse_table(table, metadata)
-        json_path = JsonWriter().write(exam, Path(workdir))
+        json_path = JsonWriter().write(exam, Path(workdir), decision)
         return json_path      
         
-    def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc=False):
+    def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision: QCUserDecisions | None = None):
         stack = DicomStack(source_dir)
         if date :
             stack = stack(SeriesNumber=series, StudyDate=date)
@@ -102,6 +104,8 @@ class Dixon3ptMethod(Method) :
 
         if qc:
             qc = quality_check_volumes(ffmap)
+            qc.save(Path(qc_dir) / "overview.png")
+            volume.write(Path(qc_dir) / "ffmap.mha", ffmap)
             qc.save(Path(workdir) / "overview.png")
             volume.write(Path(workdir) / "ffmap.mha", ffmap)
             volume.write(Path(workdir) / "mask.mha", mask)
@@ -110,9 +114,9 @@ class Dixon3ptMethod(Method) :
             (Path(workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
             for i, vol in enumerate(volumes):
                 volume.write(Path(workdir) / f"echo_{i}.mha", vol)
-            raise MutoolsCheckpoint
+            raise QCCheckpoint("mutools")
         
-        rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir)
+        rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir)
 
         metadata = {
             "exam_id": exam_id,
@@ -124,7 +128,7 @@ class Dixon3ptMethod(Method) :
             "biomarker": "FF",
         }
 
-        json_path = self.write_results(ffmap, rois, labels, metadata, workdir)
+        json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
         
         return Result(
             results=json_path,
@@ -132,7 +136,7 @@ class Dixon3ptMethod(Method) :
             provenance={"name": self.name, "version": self.version},
         )
 
-    def handle_checkpoint(self, name, *, workdir, segment, exam_id, qc):
+    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, decision):
         if name == "mutools":
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
@@ -141,7 +145,7 @@ class Dixon3ptMethod(Method) :
             rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir)
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
                         "method": self.name, "version": self.version, "acquisition": "1.0", "biomarker": "FF"}
-            json_path = self.write_results(ffmap, rois, labels, metadata, workdir)
+            json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
             result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
             return result
         elif name == "segmentation":
@@ -153,6 +157,9 @@ class Dixon3ptMethod(Method) :
             roi = [volume.read(Path(workdir) / "roi.mha")]
             labels_obj = io.read_labels(Path(workdir) / "labels.txt")
             labels = dict(zip(labels_obj.indices, labels_obj.descriptions))
-            json_path = self.write_results(ffmap, roi, labels, metadata, workdir)
+            json_path = self.write_results(ffmap, roi, labels, metadata, workdir, decision)
             result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
             return result
+        else:
+            raise ValueError(name)
+        

@@ -11,13 +11,14 @@ from pathlib import Path
 from mutools.io import volume
 from mutools import io
 
-from runner.method import Result
+from runner.method import Result, QCCheckpoint
 from runner import job_store, methods_registry
-from runner.job import JobState, MutoolsCheckpoint, SegmentationCheckpoint
+from runner.job import JobState
 from runner.progress import announce
 
 WORKDIR_ROOT = Path("workdirs")
 RESULT_DIR = Path("data") / "results"
+QC_DIR = Path("data") / "qc"
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +27,12 @@ def make_workdir(job_id: str) -> Path:
     workdir.mkdir(parents=True, exist_ok=True)
     return workdir 
 
-def run_job(job, dev=False) :
+def make_qc_dir(job_id: str) -> Path:
+    qc_dir = QC_DIR / job_id
+    qc_dir.mkdir(parents=True, exist_ok=True)
+    return qc_dir
+
+def run_job(job, dev=False, decision=None) :
     method = methods_registry.get(job.method_id) #retrieve the method asked
     job.workdir = make_workdir(job.job_id)       #creates a workdir to store job's trace
     job.state = JobState.IN_PROGRESS             #changes job status 
@@ -45,26 +51,19 @@ def run_job(job, dev=False) :
 
     job_store.save(job)
     announce(f"Task {job.job_id} started - {job.method_id} / {job.segment}")
-
+    if job.qc_dir is None:
+        job.qc_dir = make_qc_dir(job.job_id)
     try:
         if job.checkpoint:
-            result = method.handle_checkpoint(job.checkpoint, job.workdir, job.segment, job.exam_id, job.qc)
+            result = method.handle_checkpoint(name=job.checkpoint, workdir=job.workdir, segment=job.segment, exam_id=job.exam_id, qc=job.qc, decision=decision)
         else:
-            result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc)
+            result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc, job.qc_dir, decision)
 
-    except MutoolsCheckpoint as e:
+    except QCCheckpoint as e:
         log.info("job %s suspended for QC (%s)", job.job_id, e)
-        announce(f"Task {job.job_id} paused for QC (checkpoint: mutools)")
+        announce(f"Task {job.job_id} paused for QC (checkpoint: {e.name})")
         job.state = JobState.SUSPENDED
-        job.checkpoint = "mutools"
-        job_store.save(job)
-        return(job)
-
-    except SegmentationCheckpoint as e:
-        log.info("job %s suspended for QC (%s)", job.job_id, e)
-        announce(f"Task {job.job_id} paused for QC (checkpoint: segmentation)")
-        job.state = JobState.SUSPENDED
-        job.checkpoint = "segmentation"
+        job.checkpoint = e.name
         job_store.save(job)
         return(job)
 
