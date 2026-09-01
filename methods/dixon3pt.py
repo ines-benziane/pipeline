@@ -70,8 +70,7 @@ class Dixon3ptMethod(Method) :
         table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
         exam = parse_table(table, metadata)
         json_path = JsonWriter().write(exam, Path(workdir))
-        return json_path
-        
+        return json_path      
         
     def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc=False):
         stack = DicomStack(source_dir)
@@ -113,7 +112,7 @@ class Dixon3ptMethod(Method) :
                 volume.write(Path(workdir) / f"echo_{i}.mha", vol)
             raise MutoolsCheckpoint
         
-        rois, labels = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir)
+        rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir)
 
         metadata = {
             "exam_id": exam_id,
@@ -132,3 +131,28 @@ class Dixon3ptMethod(Method) :
             auto_valid=True,
             provenance={"name": self.name, "version": self.version},
         )
+
+    def handle_checkpoint(self, name, *, workdir, segment, exam_id, qc):
+        if name == "mutools":
+            echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
+            exam_date = echo_times_record["exam_date"]
+            ffmap = volume.read(Path(workdir) / "ffmap.mha")
+            volumes = [volume.read(Path(workdir) / f"echo_{i}.mha", as_complex=True) for i in range(3)]
+            rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir)
+            metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
+                        "method": self.name, "version": self.version, "acquisition": "1.0", "biomarker": "FF"}
+            json_path = self.write_results(ffmap, rois, labels, metadata, workdir)
+            result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
+            return result
+        elif name == "segmentation":
+            echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
+            exam_date = echo_times_record["exam_date"]
+            metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
+                        "method": self.name, "version": self.version, "acquisition": "1.0", "biomarker": "FF"}
+            ffmap = volume.read(Path(workdir) / "ffmap.mha")
+            roi = [volume.read(Path(workdir) / "roi.mha")]
+            labels_obj = io.read_labels(Path(workdir) / "labels.txt")
+            labels = dict(zip(labels_obj.indices, labels_obj.descriptions))
+            json_path = self.write_results(ffmap, roi, labels, metadata, workdir)
+            result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
+            return result

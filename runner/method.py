@@ -16,3 +16,6 @@ class Method (ABC):
     def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc):
         ...
 
+    @abstractmethod
+    def handle_checkpoint(self, name, *, workdir):
+        ... 

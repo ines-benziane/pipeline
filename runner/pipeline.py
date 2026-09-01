@@ -9,7 +9,6 @@ from runner.exam_catalog import AmbiguousExamError, NoExamForPatientError
 from runner.job import Job, JobState
 from runner.job_runner import RESULT_DIR, run_job
 
-
 @dataclass
 class PipelineOutcome:
     """Result of run_pipeline.
@@ -23,10 +22,10 @@ class PipelineOutcome:
     job_id: str | None = None
     checkpoint: str | None = None
 
-
 def run_pipeline(
         report_generator, catalog, source_dir, acquisition_id, method_id,
-        output_dir, series, exam_id=None, patient_name=None, exam_date=None, dev=False, qc=False,*, lang="en"
+        output_dir, series, exam_id=None, patient_name=None, exam_date=None,
+        dev=False, qc=False,*, lang="en"
         ):
     if not exam_id :
         exams = catalog.find_exams(patient_name)
@@ -39,7 +38,6 @@ def run_pipeline(
             raise AmbiguousExamError(msg, hint=hint)
         exam_id = matches[0].exam_id
 
-    
     acquisition, seg_dict = next(iter(acquisition_id.items()))
     segment_name, side = next(iter(seg_dict.items()))
 
@@ -47,7 +45,9 @@ def run_pipeline(
     if series:
         with open(Path(source_dir) / "series_selection.yml", "w") as f:
             yaml.dump(series, f)
-    job = Job(source_dir=source_dir, exam_id=exam_id, segment=segment_name, method_id=method_name, series=series, other_params=other_params, exam_date=exam_date, qc = qc)
+    job = Job(source_dir=source_dir, exam_id=exam_id, segment=segment_name,
+              method_id=method_name, series=series, other_params=other_params,
+              exam_date=exam_date, qc = qc)
     run_job(job, dev)
     if job.state == JobState.SUSPENDED:
         return PipelineOutcome(

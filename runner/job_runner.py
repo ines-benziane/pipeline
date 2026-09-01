@@ -47,27 +47,8 @@ def run_job(job, dev=False) :
     announce(f"Task {job.job_id} started - {job.method_id} / {job.segment}")
 
     try:
-        if job.checkpoint == "mutools":
-            echo_times_record = json.loads((Path(job.workdir) / "echo_times_record.json").read_text())
-            exam_date = echo_times_record["exam_date"]
-            ffmap = volume.read(Path(job.workdir) / "ffmap.mha")
-            volumes = [volume.read(Path(job.workdir) / f"echo_{i}.mha", as_complex=True) for i in range(3)]
-            rois, labels, exam_date = method.segmentation(volumes, job.segment, job.exam_id, job.qc, exam_date, job.workdir)
-            metadata = {"exam_id": job.exam_id, "exam_date": exam_date, "segment": job.segment,
-                        "method": method.name, "version": method.version, "acquisition": "1.0", "biomarker": "FF"}
-            json_path = method.write_results(ffmap, rois, labels, metadata, job.workdir)
-            result = Result(json_path, auto_valid=True, provenance={"name": method.name, "version": method.version})
-        elif job.checkpoint == "segmentation":
-            echo_times_record = json.loads((Path(job.workdir) / "echo_times_record.json").read_text())
-            exam_date = echo_times_record["exam_date"]
-            metadata = {"exam_id": job.exam_id, "exam_date": exam_date, "segment": job.segment,
-                        "method": method.name, "version": method.version, "acquisition": "1.0", "biomarker": "FF"}
-            ffmap = volume.read(Path(job.workdir) / "ffmap.mha")
-            roi = [volume.read(Path(job.workdir) / "roi.mha")]
-            labels_obj = io.read_labels(Path(job.workdir) / "labels.txt")
-            labels = dict(zip(labels_obj.indices, labels_obj.descriptions))
-            json_path = method.write_results(ffmap, roi, labels, metadata, job.workdir)
-            result = Result(json_path, auto_valid=True, provenance={"name": method.name, "version": method.version})
+        if job.checkpoint:
+            result = method.handle_checkpoint(job.checkpoint, job.workdir, job.segment, job.exam_id, job.qc)
         else:
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc)
 
