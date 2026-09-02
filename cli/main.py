@@ -70,33 +70,33 @@ def show_methods():
         click.echo(f"{name} {cls.version}")
 
 
-@cli.command()
-@click.option("--exam-id", required=True, help="Identifiant de l'examen.")
-@click.option("--method", required=True, help="Nom de la méthode (voir: pipeline show-methods).")
-@click.option("--segment", multiple=True,
-              help="Segment à traiter. Répétable. Défaut: legs et thighs.")
-@click.option("--dry-run", is_flag=True, help="Montre ce qui serait fait, sans rien créer.")
-@cli_barrier
-def apply_method(exam_id, method, segment, dry_run):
-    """Applies a method on a study, creates corresponding job (task) for tracking."""
-    segments = list(segment) if segment else ["legs", "thighs"]
+# @cli.command()
+# @click.option("--exam-id", required=True, help="Identifiant de l'examen.")
+# @click.option("--method", required=True, help="Nom de la méthode (voir: pipeline show-methods).")
+# @click.option("--segment", multiple=True,
+#               help="Segment à traiter. Répétable. Défaut: legs et thighs.")
+# @click.option("--dry-run", is_flag=True, help="Montre ce qui serait fait, sans rien créer.")
+# @cli_barrier
+# def apply_method(exam_id, method, segment, dry_run):
+#     """Applies a method on a study, creates corresponding job (task) for tracking."""
+#     segments = list(segment) if segment else ["legs", "thighs"]
 
-    if dry_run:
-        click.echo(f"{len(segments)} job(s) seraient créés :")
-        for seg in segments:
-            click.echo(f"  {exam_id}  {seg}  {method}")
-        return
+#     if dry_run:
+#         click.echo(f"{len(segments)} job(s) seraient créés :")
+#         for seg in segments:
+#             click.echo(f"  {exam_id}  {seg}  {method}")
+#         return
 
-    for seg in segments:
-        job = Job(exam_id=exam_id, segment=seg, method_id=method)
-        try:
-            run_job(job)
-        except PipelineError as e:
-            click.echo(f"{job.job_id}  {seg}  FAILED: {e}", err=True)
-            if e.hint:
-                click.echo(f"{job.job_id}  {seg}  hint: {e.hint}", err=True)
-            continue
-        click.echo(f"{job.job_id}  {seg}  {job.state.value}")
+#     for seg in segments:
+#         job = Job(exam_id=exam_id, segment=seg, method_id=method)
+#         try:
+#             run_job(job)
+#         except PipelineError as e:
+#             click.echo(f"{job.job_id}  {seg}  FAILED: {e}", err=True)
+#             if e.hint:
+#                 click.echo(f"{job.job_id}  {seg}  hint: {e.hint}", err=True)
+#             continue
+#         click.echo(f"{job.job_id}  {seg}  {job.state.value}")
 
 
 @cli.command()
@@ -177,11 +177,12 @@ def parse_method(method_id):
 # @click.option("--with-antecedent", is_flag=True, help="Include patient's history in report.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
 @click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
-@click.option("--quality-check", "-qc", is_flag=True, help="If given, quality check is activated. ")
+@click.option("--quality-check-mode", "-qc-mode", help="3 options : checkpoint, global or off. Checkpoint: there will be suspension at every step of the QC"
+"Global: QC is done without suspension checkpoint. Off: no QC. Not given: QC off")
 @click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, dfault one is data/qc/job_id")
 @click.option("--open-qc", "-oqc", is_flag=True, help="Opens QC folder")
 @cli_barrier
-def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check, quality_check_dir, open_qc):
+def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check_mode, quality_check_dir, open_qc):
     """from retrieval to one section of the report"""
     result = run_pipeline(
         # result_index=FileResultIndex(),
@@ -198,7 +199,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
         lang=lang,
         dev=dev,
         exam_date=date,
-        qc=quality_check,
+        qc=quality_check_mode  or "off",
         qc_dir=quality_check_dir
     )
     if result.status == "suspended":
@@ -211,7 +212,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
 @cli.command
 @click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
 @click.option("--decision_status", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
-@click.option("--comment", "-com", help="User comment on the QC, will appear in the Medical report. Example : 'SAR muscle segmentation failed : must not take it into account' ")
+@click.option("--comment", "-com", help="User comment on the QC, will appear in the Medical report. Example: 'SAR muscle segmentation failed : must not take it into account' ")
 @click.option("--tag", "-t", help="For common errors, use tag to caracterize it fastly. Must be in this list of tags : swap, muscle_off")
 @click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
 @cli_barrier
@@ -231,7 +232,6 @@ def resume(job_file,  decision_status, quality_check, comment, tag):
         series=data["series"],
         tag=tag, 
         comment=comment
-
     )
 
     if result.state == JobState.SUSPENDED:

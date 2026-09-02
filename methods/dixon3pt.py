@@ -58,7 +58,7 @@ class Dixon3ptMethod(Method) :
         except Exception as e:
             raise SegmentationError(f"Segmentation failed for {exam_id} (segment={segment})") from e
         labels = dict(zip(labels.indices, labels.descriptions))
-        if qc :
+        if qc in ("checkpoint", "global") :
             roi_obj = rois[0]
             roi_obj.transform =[roi_obj.transform[i:i+3] for i in range(0, len(roi_obj.transform), 3)]
             volume.write(Path(workdir) / "roi.mha", roi_obj)
@@ -66,7 +66,8 @@ class Dixon3ptMethod(Method) :
             if qc_dir:
                 volume.write(Path(qc_dir) / "roi.mha", roi_obj)
                 io.write_labels(Path(qc_dir) / "labels.txt", labels)
-            raise QCCheckpoint(self.CHECKPOINTS[1])
+            if qc == "checkpoint":
+                raise QCCheckpoint(self.CHECKPOINTS[1])
         return rois, labels, exam_date
 
     def write_results(self, ffmap, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
@@ -103,12 +104,12 @@ class Dixon3ptMethod(Method) :
         except Exception as exc:
             raise DixonReconstructionError(f"Dixon 3pt reconstruction failed for {source_dir}") from exc
 
-        if qc:
-            qc = quality_check_volumes(ffmap)
+        if qc in ("checkpoint", "global") :
+            overview = quality_check_volumes(ffmap)
             if qc_dir:
-                qc.save(Path(qc_dir) / "overview.png")
+                overview.save(Path(qc_dir) / "overview.png")
                 volume.write(Path(qc_dir) / "ffmap.mha", ffmap)
-            qc.save(Path(workdir) / "overview.png")
+            overview.save(Path(workdir) / "overview.png")
             volume.write(Path(workdir) / "ffmap.mha", ffmap)
             volume.write(Path(workdir) / "mask.mha", mask)
             volume.write(Path(workdir) / "echo_times.mha", echo_times)
@@ -116,7 +117,8 @@ class Dixon3ptMethod(Method) :
             (Path(workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
             for i, vol in enumerate(volumes):
                 volume.write(Path(workdir) / f"echo_{i}.mha", vol)
-            raise QCCheckpoint(self.CHECKPOINTS[0])
+            if qc == "checkpoint":
+                raise QCCheckpoint(self.CHECKPOINTS[0])
         
         rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir)
 

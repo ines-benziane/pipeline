@@ -33,10 +33,12 @@ class Job:
     workdir: Path | None = None
     other_params:  list[str] | None = None
     exam_date: str | None = None 
-    qc: bool | None = False
+    qc: str | None = "off"
     checkpoint: str | None = None
     qc_dir: Path | None = None
 
     def __post_init__(self):
         if self.job_id is None:
             self.job_id = f"{self.exam_id}-{_new_job_id()}"
+        if self.qc not in ("off", "checkpoint", "global"):
+            raise ValueError(f"qc must be off/checkpoint/global, got {self.qc!r}")

@@ -27,12 +27,12 @@ def make_workdir(job_id: str) -> Path:
     workdir.mkdir(parents=True, exist_ok=True)
     return workdir 
 
-def make_qc_dir(job_id: str) -> Path:
-    qc_dir = QC_DIR / job_id
+def make_qc_dir(output_dir, job_id: str) -> Path:
+    qc_dir = Path(output_dir) / job_id
     qc_dir.mkdir(parents=True, exist_ok=True)
     return qc_dir
 
-def run_job(job, dev=False, decision=None) :
+def run_job(job, output_dir=None, dev=False, decision=None) :
     method = methods_registry.get(job.method_id) #retrieve the method asked
     job.workdir = make_workdir(job.job_id)       #creates a workdir to store job's trace
     job.state = JobState.IN_PROGRESS             #changes job status 
@@ -52,7 +52,7 @@ def run_job(job, dev=False, decision=None) :
     job_store.save(job)
     announce(f"Task {job.job_id} started - {job.method_id} / {job.segment}")
     if job.qc_dir is None:
-        job.qc_dir = make_qc_dir(job.job_id)
+        job.qc_dir = make_qc_dir(output_dir or QC_DIR, job.job_id)
     try:
         if job.checkpoint:
             result = method.handle_checkpoint(name=job.checkpoint, workdir=job.workdir, segment=job.segment, exam_id=job.exam_id, qc=job.qc, decision=decision)
