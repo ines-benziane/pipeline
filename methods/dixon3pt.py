@@ -36,6 +36,7 @@ class Dixon3ptMethod(Method) :
     name = "dixon3pt"
     version = "1.0"
     comparability_criteria = []
+    CHECKPOINTS = ("mutools", "segmentation")
 
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None):
         mag_1 = abs(volumes[0])
@@ -65,7 +66,7 @@ class Dixon3ptMethod(Method) :
             if qc_dir:
                 volume.write(Path(qc_dir) / "roi.mha", roi_obj)
                 io.write_labels(Path(qc_dir) / "labels.txt", labels)
-            raise QCCheckpoint("segmentation")
+            raise QCCheckpoint(self.CHECKPOINTS[1])
         return rois, labels, exam_date
 
     def write_results(self, ffmap, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
@@ -104,8 +105,9 @@ class Dixon3ptMethod(Method) :
 
         if qc:
             qc = quality_check_volumes(ffmap)
-            qc.save(Path(qc_dir) / "overview.png")
-            volume.write(Path(qc_dir) / "ffmap.mha", ffmap)
+            if qc_dir:
+                qc.save(Path(qc_dir) / "overview.png")
+                volume.write(Path(qc_dir) / "ffmap.mha", ffmap)
             qc.save(Path(workdir) / "overview.png")
             volume.write(Path(workdir) / "ffmap.mha", ffmap)
             volume.write(Path(workdir) / "mask.mha", mask)
@@ -114,7 +116,7 @@ class Dixon3ptMethod(Method) :
             (Path(workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
             for i, vol in enumerate(volumes):
                 volume.write(Path(workdir) / f"echo_{i}.mha", vol)
-            raise QCCheckpoint("mutools")
+            raise QCCheckpoint(self.CHECKPOINTS[0])
         
         rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir)
 
@@ -137,6 +139,7 @@ class Dixon3ptMethod(Method) :
         )
 
     def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, decision):
+        self._check_checkpoint(name)
         if name == "mutools":
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
@@ -160,6 +163,5 @@ class Dixon3ptMethod(Method) :
             json_path = self.write_results(ffmap, roi, labels, metadata, workdir, decision)
             result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
             return result
-        else:
-            raise ValueError(name)
+
         

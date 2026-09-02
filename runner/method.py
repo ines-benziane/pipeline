@@ -10,7 +10,6 @@ class Result :
 
 class QCCheckpoint(Exception):
     """Signal raised by a method to suspend a job for quality control.
-    Not a PipelineError: this is not a failure.
 
     `name` identifies the stage the method paused at. The method owns the
     set of valid names; the runner only stores it back on the job.
@@ -31,6 +30,7 @@ class Method (ABC):
     name : str
     version : str
     comparability_criteria : list
+    CHECKPOINTS: tuple[str, ...] = ()
 
     @abstractmethod
     def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None):
@@ -39,3 +39,8 @@ class Method (ABC):
     @abstractmethod
     def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, decision=None):
         ... 
+
+    def _check_checkpoint(self, name):
+        if name not in self.CHECKPOINTS:
+            raise ValueError(f"{name!r} not a checkpoint of {self.name}: {self.CHECKPOINTS}")
+        
