@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import json
+import logging
 import numpy as np
 
 from runner.errors import (
@@ -32,11 +33,28 @@ from results_writer.json_writer import JsonWriter
 
 MODEL_BY_SEGMENT = {"legs": "museg-legs:model1", "thighs": "museg-thighs:model3"}
 
+log = logging.getLogger(__name__)
+
 class Dixon3ptMethod(Method) :
     name = "dixon3pt"
     version = "1.0"
     comparability_criteria = []
     CHECKPOINTS = ("mutools", "segmentation")
+
+    def _dump_crash(self, workdir, **arrays):
+        """Best-effort dump of in-memory volumes to workdir/crash/ when a stage
+        raises. Write failures are logged, never re-raised."""
+        crash_dir = Path(workdir) / "crash"
+        try:
+            crash_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            log.warning("crash dump: could not create %s", crash_dir, exc_info=True)
+            return
+        for label, arr in arrays.items():
+            try:
+                volume.write(crash_dir / f"{label}.mha", arr)
+            except Exception:
+                log.warning("crash dump: could not write %s", label, exc_info=True)
 
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None):
         mag_1 = abs(volumes[0])
@@ -56,6 +74,7 @@ class Dixon3ptMethod(Method) :
             announce("  running segmentation model...")
             rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
         except Exception as e:
+            self._dump_crash(workdir, **{f"seg_input_echo_{i}": vol for i, vol in enumerate(volumes)})
             raise SegmentationError(f"Segmentation failed for {exam_id} (segment={segment})") from e
         labels = dict(zip(labels.indices, labels.descriptions))
         if qc in ("checkpoint", "global") :
@@ -102,6 +121,12 @@ class Dixon3ptMethod(Method) :
             water_map, fat_map, delta_b0, r2_star = dixon_3pt(echo_times, *volumes, mask = mask, force_reconstruction=False, global_swap=False)
             ffmap = make_ffmap(water_map, fat_map, mask=mask)
         except Exception as exc:
+            self._dump_crash(
+                workdir,
+                mask=mask,
+                echo_times=echo_times,
+                **{f"echo_{i}": vol for i, vol in enumerate(volumes)},
+            )
             raise DixonReconstructionError(f"Dixon 3pt reconstruction failed for {source_dir}") from exc
 
         if qc in ("checkpoint", "global") :
@@ -140,14 +165,14 @@ class Dixon3ptMethod(Method) :
             provenance={"name": self.name, "version": self.version},
         )
 
-    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, decision):
+    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None):
         self._check_checkpoint(name)
         if name == "mutools":
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
             ffmap = volume.read(Path(workdir) / "ffmap.mha")
             volumes = [volume.read(Path(workdir) / f"echo_{i}.mha", as_complex=True) for i in range(3)]
-            rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir)
+            rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir)
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
                         "method": self.name, "version": self.version, "acquisition": "1.0", "biomarker": "FF"}
             json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)

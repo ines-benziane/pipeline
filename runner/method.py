@@ -37,8 +37,8 @@ class Method (ABC):
         ...
 
     @abstractmethod
-    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, decision=None):
-        ... 
+    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None):
+        ...
 
     def _check_checkpoint(self, name):
         if name not in self.CHECKPOINTS:

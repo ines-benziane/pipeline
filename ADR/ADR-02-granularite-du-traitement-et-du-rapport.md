@@ -1,9 +1,12 @@
 # ADR-002 — Granularité du traitement et du rapport
 
 **Statut :** accepté
-**Version :** 1
-**Date :** 2026-07-21
+**Version :** 2
+**Date :** 2026-07-21 (révisé 2026-09-02)
 **Contexte projet :** pipeline IRM, milestone M1 (squelette ambulant)
+
+> **Révision 2026-09-02 (D3) :** le dossier partagé de résultats passe de `data/results/`
+> (racine du projet) à `workdirs/results/`. Voir §2 D3 et §6.
 
 ---
 
@@ -43,7 +46,7 @@ Un traitement produit **exactement un** fichier de résultats. Un rapport en con
 Les deux opérations ne se connaissent pas. Elles se rencontrent en un seul point : un **dossier partagé de résultats**, dont le contenu est indexé par une **convention de nommage**.
 
 ```
-data/results/{patient_id}_{exam_date}_{segment}_{method}_{version}_{acquisition}.json
+workdirs/results/{patient_id}_{exam_date}_{segment}_{method}_{version}_{acquisition}.json
 ```
 
 Le nom de fichier n'est pas décoratif : il est l'index. C'est lui qui permet à `medical_report` de découvrir les résultats disponibles et de retrouver les antécédents d'un patient sans base de données.
@@ -52,9 +55,11 @@ Le nom de fichier n'est pas décoratif : il est l'index. C'est lui qui permet à
 
 ### D3 — Le dossier de résultats n'appartient à aucune brique
 
-Le dossier partagé est situé à la racine du projet (`data/results/`), et non à l'intérieur de `medical_report/` où il se trouvait historiquement.
+Le dossier partagé est situé dans la zone interne du runner (`workdirs/results/`), et non à l'intérieur de `medical_report/` où il se trouvait historiquement.
 
 **Principe :** une donnée partagée par deux briques ne vit chez aucune des deux. Placer le dossier chez le consommateur créerait une dépendance implicite des producteurs vers `medical_report`.
+
+**Révision 2026-09-02 :** initialement à la racine (`data/results/`). Consolidé sous `workdirs/` pour ne garder que trois emplacements sur disque : `source_dir` (DICOM en entrée), `workdirs/` (tout l'interne serveur, non exposé à l'utilisateur — traces par job, données de reprise, pool de résultats JSON), et `output_dir` (livrables destinés à l'utilisateur : PDF et fichiers QC). Le pool de résultats reste un dossier *cross-job* stable — il ne peut pas vivre dans `workdirs/<job_id>/` puisque le rapport agrège plusieurs examens — d'où `workdirs/results/` à plat.
 
 ### D4 — Deux commandes distinctes dans l'interface
 
@@ -113,3 +118,21 @@ En conséquence, la signature du contrat devient `run(source_dir, workdir, segme
 - Notes de réunion du 9 juillet 2026 — agrégation des résultats, composition à la carte
 - Design doc pipeline IRM v2, §5 (architecture hexagonale)
 - ADR-001 — Déploiement et mode d'accès utilisateur (décision D2, échanges asynchrones)
+
+---
+
+## 6. Révisions
+
+### 2026-09-02 — Consolidation des emplacements disque (D3)
+
+Le dossier partagé de résultats passe de `data/results/` à `workdirs/results/`, et le dossier `data/` est supprimé. Objectif : réduire la dispersion à trois emplacements seulement.
+
+| Emplacement | Rôle | Exposé utilisateur |
+|---|---|---|
+| `source_dir` | DICOM en entrée | — |
+| `workdirs/` | interne serveur : `workdirs/jobs/` (fiches job), `workdirs/<job_id>/` (traces, `run.log`, `crash/`, données de reprise), `workdirs/results/` (pool de résultats JSON) | non |
+| `output_dir` | livrables : PDF, `<job_id>/` de fichiers QC | oui |
+
+La décision D2 (couplage par la donnée via convention de nommage) et le principe D3 (la donnée partagée ne vit chez aucune brique) sont inchangés ; seul le chemin bouge. Le pool reste un dossier *cross-job* à plat car le rapport agrège plusieurs examens.
+
+Impact code : `RESULT_DIR` dans `runner/job_runner.py` ; `runner/job_store.py` (`JOBS_DIR = workdirs/jobs`). `--output-dir` est requis sur `process` **et** `resume`, donc les fichiers QC vont dans `<output_dir>/<job_id>/` dans les deux cas. `adapters/file_result_index.py` et `runner/pipeline.py` importent `RESULT_DIR` et suivent automatiquement.

@@ -17,8 +17,7 @@ from runner.job import JobState
 from runner.progress import announce
 
 WORKDIR_ROOT = Path("workdirs")
-RESULT_DIR = Path("data") / "results"
-QC_DIR = Path("data") / "qc"
+RESULT_DIR = WORKDIR_ROOT / "results"
 
 log = logging.getLogger(__name__)
 
@@ -32,10 +31,10 @@ def make_qc_dir(output_dir, job_id: str) -> Path:
     qc_dir.mkdir(parents=True, exist_ok=True)
     return qc_dir
 
-def run_job(job, output_dir=None, dev=False, decision=None) :
-    method = methods_registry.get(job.method_id) #retrieve the method asked
-    job.workdir = make_workdir(job.job_id)       #creates a workdir to store job's trace
-    job.state = JobState.IN_PROGRESS             #changes job status 
+def run_job(job, output_dir, dev=False, decision=None) :
+    method = methods_registry.get(job.method_id)
+    job.workdir = make_workdir(job.job_id)
+    job.state = JobState.IN_PROGRESS
     log_path = job.workdir / "run.log"
     handler = logging.FileHandler(log_path)
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
@@ -44,18 +43,16 @@ def run_job(job, output_dir=None, dev=False, decision=None) :
     previous_level = root_logger.level
     root_logger.setLevel(logging.DEBUG if dev else logging.INFO)
     root_logger.addHandler(handler)
-    # quiets noisy third-party libraries even in dev mode (docker/urllib3 log
-    # every HTTP call to the docker daemon at DEBUG level)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("docker").setLevel(logging.WARNING)
 
     job_store.save(job)
     announce(f"Task {job.job_id} started - {job.method_id} / {job.segment}")
     if job.qc_dir is None:
-        job.qc_dir = make_qc_dir(output_dir or QC_DIR, job.job_id)
+        job.qc_dir = make_qc_dir(output_dir, job.job_id)
     try:
         if job.checkpoint:
-            result = method.handle_checkpoint(name=job.checkpoint, workdir=job.workdir, segment=job.segment, exam_id=job.exam_id, qc=job.qc, decision=decision)
+            result = method.handle_checkpoint(name=job.checkpoint, workdir=job.workdir, segment=job.segment, exam_id=job.exam_id, qc=job.qc, qc_dir=job.qc_dir, decision=decision)
         else:
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series, job.other_params, job.exam_date, job.qc, job.qc_dir, decision)
 
@@ -77,7 +74,7 @@ def run_job(job, output_dir=None, dev=False, decision=None) :
         root_logger.setLevel(previous_level)
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     shutil.copy(result.results, RESULT_DIR / result.results.name) #results given by method (ex json_output)
-    if result.auto_valid: #not implemented yet
+    if result.auto_valid: #not implemented yet, auto-valid=yes
         job.state = JobState.RESULTS_READY
     else :
         job.state = JobState.SUSPENDED

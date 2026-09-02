@@ -170,16 +170,16 @@ def parse_method(method_id):
 @click.option("--source-dir", "-sd",  required=True, help="Folder with the dicom ")
 @click.option("--method-id", "-m", required=True, help="method-id gathers the method's name and other optional parameters that might be needed by the method. Example : --method-name method_id:param1:param_2:param_3 ")
 @click.option("--acquisition-id", "-a", required=True, help="Acquisition parameters.Usage: segment:side:acquisition")
-@click.option("--output-dir", "-o", required=True, help="Fodler where the report will be stored.")
+@click.option("--output-dir", "-od", required=True, help="Fodler where the files (medical report, qc report or else) will be stored.")
 @click.option("--series", "-s", required=True, help="Acquisition parameters.Usage: --series 1,2,3")
 # @click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--lang", "-l", default="en")
 # @click.option("--with-antecedent", is_flag=True, help="Include patient's history in report.")
 @click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
 @click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
-@click.option("--quality-check-mode", "-qc-mode", help="3 options : checkpoint, global or off. Checkpoint: there will be suspension at every step of the QC"
+@click.option("--quality-check-mode", "-qc-mode", type=click.Choice(["off", "checkpoint", "global"]), default="off", help="3 options : checkpoint, global or off. Checkpoint: there will be suspension at every step of the QC"
 "Global: QC is done without suspension checkpoint. Off: no QC. Not given: QC off")
-@click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, dfault one is data/qc/job_id")
+@click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, default one isoutput_dir")
 @click.option("--open-qc", "-oqc", is_flag=True, help="Opens QC folder")
 @cli_barrier
 def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check_mode, quality_check_dir, open_qc):
@@ -199,7 +199,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
         lang=lang,
         dev=dev,
         exam_date=date,
-        qc=quality_check_mode  or "off",
+        qc=quality_check_mode,
         qc_dir=quality_check_dir
     )
     if result.status == "suspended":
@@ -212,11 +212,12 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
 @cli.command
 @click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
 @click.option("--decision_status", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
+@click.option("--output-dir", "-od", required=True, help="Fodler where the files (medical report, qc report or else) will be stored.")
 @click.option("--comment", "-com", help="User comment on the QC, will appear in the Medical report. Example: 'SAR muscle segmentation failed : must not take it into account' ")
 @click.option("--tag", "-t", help="For common errors, use tag to caracterize it fastly. Must be in this list of tags : swap, muscle_off")
 @click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
 @cli_barrier
-def resume(job_file,  decision_status, quality_check, comment, tag):
+def resume(job_file,  decision_status, output_dir, quality_check, comment, tag):
     data = json.loads(Path(job_file).read_text(encoding="utf-8"))
     result = resume_pipeline(
         job_id=data["job_id"],
@@ -231,7 +232,8 @@ def resume(job_file,  decision_status, quality_check, comment, tag):
         source_dir=data["source_dir"],
         series=data["series"],
         tag=tag, 
-        comment=comment
+        comment=comment,
+        output_dir=output_dir
     )
 
     if result.state == JobState.SUSPENDED:

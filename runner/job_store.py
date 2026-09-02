@@ -6,7 +6,7 @@ from pathlib import Path
 from runner.errors import JobNotFoundError
 from runner.job import Job, JobState
 
-JOBS_DIR = Path("data") / "jobs"
+JOBS_DIR = Path("workdirs") / "jobs"
 
 def save(job):
     JOBS_DIR.mkdir(parents=True, exist_ok=True)
