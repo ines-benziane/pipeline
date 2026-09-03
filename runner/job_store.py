@@ -21,6 +21,8 @@ def save(job):
         "state": job.state.value,
         "workdir": str(job.workdir) if job.workdir else None,
         "checkpoint": job.checkpoint,
+        "exam_date": job.exam_date,
+        "other_params": job.other_params,
     }
 
     path = JOBS_DIR / f"{job.job_id}.json"
@@ -43,4 +45,6 @@ def load(job_id):
         state=JobState(data["state"]),
         workdir=Path(data["workdir"]) if data["workdir"] else None,
         checkpoint=data["checkpoint"],
+        exam_date=data.get("exam_date"),
+        other_params=data.get("other_params"),
     )

@@ -1,13 +1,11 @@
 ### TO DO : batch sur plusieurs examens
 
 import functools
-import json
 import logging
 import sys
 
 import click
 
-from pathlib import Path
 from adapters.medical_report_generator import MedicalReportGenerator
 from methods.dummy import DummyMethod
 from methods.dixon3pt import Dixon3ptMethod
@@ -210,7 +208,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
         click.echo(str(result.pdf_path))
 
 @cli.command
-@click.option("--job-file", "-f", required=True, help="The json file storing the job's data ")
+@click.option("--job-id", "-f", required=True, help="Job to resume's ID")
 @click.option("--decision_status", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
 @click.option("--output-dir", "-od", required=True, help="Fodler where the files (medical report, qc report or else) will be stored.")
 @click.option("--comment", "-com", help="User comment on the QC, will appear in the Medical report. Example: 'SAR muscle segmentation failed : must not take it into account' ")
@@ -219,25 +217,16 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
 @click.option("--debug", "-d", is_flag=True, help="debug mode, detailed logging, saves data at every checkpoint.")
 @click.option("--action", "-a", help="Launch method with this particular action. Actions are specific to the method. Example: --action global-swap")
 @cli_barrier
-def resume(job_file,  decision_status, output_dir, quality_check, comment, tag, debug, action):
-    data = json.loads(Path(job_file).read_text(encoding="utf-8"))
+def resume(job_id,  decision_status, output_dir, quality_check, comment, tag, debug, action):
     result = resume_pipeline(
-        job_id=data["job_id"],
-        decision_status=decision_status,
-        state=data["state"],
-        exam_id=data["exam_id"],
-        segment=data["segment"],
-        method_id=data["method_id"],
-        workdir=data["workdir"],
-        checkpoint=data["checkpoint"],
-        qc=quality_check,
-        source_dir=data["source_dir"],
-        series=data["series"],
-        tag=tag, 
-        comment=comment,
+        job_id=job_id,
         output_dir=output_dir,
+        decision_status=decision_status,
+        qc=quality_check,
+        tag=tag,
+        comment=comment,
         debug=debug,
-        action=action
+        action=action,
     )
 
     if result.state == JobState.SUSPENDED:

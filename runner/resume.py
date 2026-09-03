@@ -1,25 +1,26 @@
-from runner.job import Job
+from runner import job_store
 from runner.job_runner import run_job
-from runner.method import Result, QCUserDecisions
+from runner.method import QCUserDecisions
 
 
-def resume_pipeline(job_id, decision_status, output_dir, state, exam_id, segment,
-                    method_id, workdir, checkpoint, qc, source_dir, series, tag,
-                    comment, debug=False, action=None):
+def resume_pipeline(job_id, output_dir, decision_status, qc,
+                    tag=None, comment=None, debug=False, action=None):
     """Re-run the same job (same job_id) after a QC pause.
 
-    Without `action`: continue from `checkpoint` via handle_checkpoint.
+    Without `action`: continue from `job.checkpoint` via handle_checkpoint.
     With `action`: clear `checkpoint` and re-run from scratch with the correction applied.
+
+    The job is loaded from the internal store by id; the user never handles the job file.
     """
+    job = job_store.load(job_id)
+    job.qc = "checkpoint" if qc else "off"
+    if action:
+        job.checkpoint = None
+
     decision = QCUserDecisions(
         decision_status=decision_status,
-        tag=tag, 
+        tag=tag,
         comment=comment,
-        action=action
+        action=action,
     )
-    job = Job(job_id=job_id, workdir=workdir, source_dir=source_dir, exam_id=exam_id, segment=segment,
-              method_id=method_id, series=series, qc="checkpoint" if qc else "off", checkpoint=checkpoint)
-    if action:
-        job.checkpoint=None
-    #TO DO : insérer le vrai dev si ya un mode dev dans resume.. a réfléchir
     return run_job(job, output_dir, debug=debug, decision=decision, action=action)
