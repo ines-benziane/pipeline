@@ -13,7 +13,7 @@ from methods.dixon3pt import Dixon3ptMethod
 from runner import methods_registry
 from runner.errors import PipelineError
 from runner.job import Job, JobState
-from runner.job_runner import run_job
+from runner.job_runner import run_job, RESULT_DIR
 from runner.exam_retriever import DeidentificationMode
 from runner.pipeline import run_pipeline
 from runner.resume import resume_pipeline
@@ -99,14 +99,14 @@ def show_methods():
 
 @cli.command()
 @click.option("--exam-id", required=True, help="Identifiant de l'examen.")
-@click.option("--data-dir", required=True, help="Dossier des résultats JSON (json_output).")
 @click.option("--output-dir", required=True, help="Dossier de sortie du rapport PDF.")
+@click.option("--data-dir", help="Dossier des résultats JSON (json_output).")
 @click.option("--lang", default="en", help="Langue du rapport.")
 @cli_barrier
 def report(exam_id, data_dir, output_dir, lang):
     """Generates report from already processed data. """
     generator = MedicalReportGenerator()
-    pdf_path = generator.generate([exam_id], data_dir, output_dir, lang=lang)
+    pdf_path = generator.generate([exam_id], data_dir or RESULT_DIR, output_dir, lang=lang)
     click.echo(str(pdf_path))
 
 
@@ -207,12 +207,12 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
     else:
         click.echo(str(result.pdf_path))
 
-@cli.command
+@cli.command()
 @click.option("--job-id", "-f", required=True, help="Job to resume's ID")
-@click.option("--decision_status", "-dec", required=True, help="Decision about the job. Continue, interrupt or apply specific functions.")
+@click.option("--decision_status", "-dec", required=True, type=click.Choice(["yes", "no", "pending"]), help="User verdict on the QC result.")
 @click.option("--output-dir", "-od", required=True, help="Fodler where the files (medical report, qc report or else) will be stored.")
 @click.option("--comment", "-com", help="User comment on the QC, will appear in the Medical report. Example: 'SAR muscle segmentation failed : must not take it into account' ")
-@click.option("--tag", "-t", help="For common errors, use tag to caracterize it fastly. Must be in this list of tags : swap, muscle_off")
+@click.option("--tag", "-t", type=click.Choice(["swap", "muscle_off"]), help="Codified observation, for fast stats on recurring issues.")
 @click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
 @click.option("--debug", "-d", is_flag=True, help="debug mode, detailed logging, saves data at every checkpoint.")
 @click.option("--action", "-a", help="Launch method with this particular action. Actions are specific to the method. Example: --action global-swap")
@@ -232,6 +232,7 @@ def resume(job_id,  decision_status, output_dir, quality_check, comment, tag, de
     if result.state == JobState.SUSPENDED:
         click.echo(f"Job {result.job_id} suspended at checkpoint '{result.checkpoint}'")
     elif result.state == JobState.RESULTS_READY:
-        click.echo(f"Job {result.job_id} finished — results ready.")
+        click.echo(f"Job {result.job_id} done — result saved. "
+                   f"Run `pipeline report --exam-id {result.exam_id} --output-dir <dir>` to (re)generate the PDF.")
     else:
         click.echo(f"Job {result.job_id} state: {result.state.value}")

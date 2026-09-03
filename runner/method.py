@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 @dataclass
 class Result :
-    results : dict
+    results : Path
     auto_valid : bool
     provenance : dict
 

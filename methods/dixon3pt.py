@@ -72,7 +72,7 @@ class Dixon3ptMethod(Method) :
         except KeyError:
             raise UnknownSegmentError(segment, MODEL_BY_SEGMENT) from None
         try :
-            announce("  running segmentation model...")
+            announce("running segmentation model...", level=1)
             rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
         except Exception as e:
             if debug:
@@ -92,9 +92,13 @@ class Dixon3ptMethod(Method) :
         return rois, labels, exam_date
 
     def write_results(self, ffmap, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
+        if decision is not None:
+            metadata = {**metadata,
+                        "qc_decision": decision.decision_status,
+                        "qc_comment": decision.comment}
         table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
         exam = parse_table(table, metadata)
-        json_path = JsonWriter().write(exam, Path(workdir), decision)
+        json_path = JsonWriter().write(exam, Path(workdir))
         return json_path      
         
     def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
@@ -111,7 +115,7 @@ class Dixon3ptMethod(Method) :
                 hint="check --series and --date",
             )
         exam_date = stack.single("StudyDate")
-        announce("  parsing Dixon DICOM series...")
+        announce("parsing Dixon DICOM series...", level=1)
         try :
             info, volumes = parse_dicom_dixon_default(stack, npoint=3)
             echo_times = info["echo_times"]
@@ -120,7 +124,7 @@ class Dixon3ptMethod(Method) :
                 f"Selected series in {source_dir} are not a readable 3-point Dixon acquisition"
             ) from exc
         mask = make_mask(*volumes, axis=2, threshold=10)
-        announce("  Dixon 3pt reconstruction...")
+        announce("Dixon 3pt reconstruction...", level=1)
         try :
             water_map, fat_map, delta_b0, r2_star = dixon_3pt(echo_times, *volumes, mask = mask, force_reconstruction=False, global_swap=False)
             if action == "global-swap":
@@ -163,6 +167,7 @@ class Dixon3ptMethod(Method) :
             "version": self.version,
             "acquisition": "1.0",
             "biomarker": "FF",
+            "segmentation": MODEL_BY_SEGMENT[segment],
         }
 
         json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
@@ -182,7 +187,8 @@ class Dixon3ptMethod(Method) :
             volumes = [volume.read(Path(workdir) / f"echo_{i}.mha", as_complex=True) for i in range(3)]
             rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
-                        "method": self.name, "version": self.version, "acquisition": "1.0", "biomarker": "FF"}
+                        "method": self.name, "version": self.version, "acquisition": "1.0",
+                        "biomarker": "FF", "segmentation": MODEL_BY_SEGMENT[segment]}
             json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
             result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
             return result
@@ -190,7 +196,8 @@ class Dixon3ptMethod(Method) :
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
-                        "method": self.name, "version": self.version, "acquisition": "1.0", "biomarker": "FF"}
+                        "method": self.name, "version": self.version, "acquisition": "1.0",
+                        "biomarker": "FF", "segmentation": MODEL_BY_SEGMENT[segment]}
             ffmap = volume.read(Path(workdir) / "ffmap.mha")
             roi = [volume.read(Path(workdir) / "roi.mha")]
             labels_obj = io.read_labels(Path(workdir) / "labels.txt")

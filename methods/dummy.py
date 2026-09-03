@@ -12,7 +12,7 @@ class DummyMethod(Method):
     comparability_criteria = []
 
     def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc=False):
-        announce(f"  building dummy result for {exam_id} / {segment}...")
+        announce(f"building dummy result for {exam_id} / {segment}...", level=1)
         data = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
         for field in ("patient_name", "birth_date", "referring_doctor"):

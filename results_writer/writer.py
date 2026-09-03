@@ -98,10 +98,12 @@ def parse_table(table, metadata) -> Exam:
             method=metadata["method"],
             version=metadata["version"],
             acquisition=metadata["acquisition"],
-            segmentation="seg",
+            segmentation=metadata["segmentation"],
             biomarker=metadata["biomarker"],
             patient_name=metadata.get("patient_name"),
             birth_date=metadata.get("birth_date"),
             referring_doctor=metadata.get("referring_doctor"),
+            qc_comment=metadata.get("qc_comment"),
+            qc_decision=metadata.get("qc_decision")
         )
     )
