@@ -40,10 +40,11 @@ class Dixon3ptMethod(Method) :
     version = "1.0"
     comparability_criteria = []
     CHECKPOINTS = ("mutools", "segmentation")
+    ACTIONS = ("global-swap",)
 
     def _dump_crash(self, workdir, **arrays):
         """Best-effort dump of in-memory volumes to workdir/crash/ when a stage
-        raises. Write failures are logged, never re-raised."""
+        raises under --debug. Write failures are logged, never re-raised."""
         crash_dir = Path(workdir) / "crash"
         try:
             crash_dir.mkdir(parents=True, exist_ok=True)
@@ -56,7 +57,7 @@ class Dixon3ptMethod(Method) :
             except Exception:
                 log.warning("crash dump: could not write %s", label, exc_info=True)
 
-    def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None):
+    def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None, debug=False):
         mag_1 = abs(volumes[0])
         mag_2 = abs(volumes[1])
         mag_1 = np.nan_to_num(mag_1)
@@ -74,19 +75,20 @@ class Dixon3ptMethod(Method) :
             announce("  running segmentation model...")
             rois, labels = run_model(model=model, images=[(img_1, img_2)], side="LR")
         except Exception as e:
-            self._dump_crash(workdir, **{f"seg_input_echo_{i}": vol for i, vol in enumerate(volumes)})
+            if debug:
+                self._dump_crash(workdir, **{f"seg_input_echo_{i}": vol for i, vol in enumerate(volumes)})
             raise SegmentationError(f"Segmentation failed for {exam_id} (segment={segment})") from e
         labels = dict(zip(labels.indices, labels.descriptions))
-        if qc in ("checkpoint", "global") :
-            roi_obj = rois[0]
-            roi_obj.transform =[roi_obj.transform[i:i+3] for i in range(0, len(roi_obj.transform), 3)]
+        roi_obj = rois[0]
+        roi_obj.transform =[roi_obj.transform[i:i+3] for i in range(0, len(roi_obj.transform), 3)]
+        if debug or qc in ("checkpoint", "global") :
             volume.write(Path(workdir) / "roi.mha", roi_obj)
             io.write_labels(Path(workdir) / "labels.txt", labels)
-            if qc_dir:
-                volume.write(Path(qc_dir) / "roi.mha", roi_obj)
-                io.write_labels(Path(qc_dir) / "labels.txt", labels)
-            if qc == "checkpoint":
-                raise QCCheckpoint(self.CHECKPOINTS[1])
+        if qc in ("checkpoint", "global"):
+            volume.write(Path(qc_dir) / "roi.mha", roi_obj)
+            io.write_labels(Path(qc_dir) / "labels.txt", labels)
+        if qc == "checkpoint":
+            raise QCCheckpoint(self.CHECKPOINTS[1])
         return rois, labels, exam_date
 
     def write_results(self, ffmap, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
@@ -95,7 +97,9 @@ class Dixon3ptMethod(Method) :
         json_path = JsonWriter().write(exam, Path(workdir), decision)
         return json_path      
         
-    def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision: QCUserDecisions | None = None):
+    def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
+             decision: QCUserDecisions | None = None, debug=False, action=None):
+        self._check_action(action)
         stack = DicomStack(source_dir)
         if date :
             stack = stack(SeriesNumber=series, StudyDate=date)
@@ -119,22 +123,26 @@ class Dixon3ptMethod(Method) :
         announce("  Dixon 3pt reconstruction...")
         try :
             water_map, fat_map, delta_b0, r2_star = dixon_3pt(echo_times, *volumes, mask = mask, force_reconstruction=False, global_swap=False)
+            if action == "global-swap":
+                water_map, fat_map = fat_map, water_map
             ffmap = make_ffmap(water_map, fat_map, mask=mask)
         except Exception as exc:
-            self._dump_crash(
-                workdir,
-                mask=mask,
-                echo_times=echo_times,
-                **{f"echo_{i}": vol for i, vol in enumerate(volumes)},
-            )
+            if debug:
+                self._dump_crash(
+                    workdir,
+                    mask=mask,
+                    echo_times=echo_times,
+                    **{f"echo_{i}": vol for i, vol in enumerate(volumes)},
+                )
             raise DixonReconstructionError(f"Dixon 3pt reconstruction failed for {source_dir}") from exc
 
-        if qc in ("checkpoint", "global") :
+        if debug or qc in ("checkpoint", "global"):
             overview = quality_check_volumes(ffmap)
-            if qc_dir:
-                overview.save(Path(qc_dir) / "overview.png")
-                volume.write(Path(qc_dir) / "ffmap.mha", ffmap)
             overview.save(Path(workdir) / "overview.png")
+        if qc in ("checkpoint", "global"):
+            overview.save(Path(qc_dir) / "overview.png")
+            volume.write(Path(qc_dir) / "ffmap.mha", ffmap)
+        if debug or qc=="checkpoint":
             volume.write(Path(workdir) / "ffmap.mha", ffmap)
             volume.write(Path(workdir) / "mask.mha", mask)
             volume.write(Path(workdir) / "echo_times.mha", echo_times)
@@ -142,10 +150,10 @@ class Dixon3ptMethod(Method) :
             (Path(workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
             for i, vol in enumerate(volumes):
                 volume.write(Path(workdir) / f"echo_{i}.mha", vol)
-            if qc == "checkpoint":
-                raise QCCheckpoint(self.CHECKPOINTS[0])
-        
-        rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir)
+        if qc == "checkpoint":
+            raise QCCheckpoint(self.CHECKPOINTS[0])
+
+        rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
 
         metadata = {
             "exam_id": exam_id,
@@ -165,14 +173,14 @@ class Dixon3ptMethod(Method) :
             provenance={"name": self.name, "version": self.version},
         )
 
-    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None):
+    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False):
         self._check_checkpoint(name)
         if name == "mutools":
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
             ffmap = volume.read(Path(workdir) / "ffmap.mha")
             volumes = [volume.read(Path(workdir) / f"echo_{i}.mha", as_complex=True) for i in range(3)]
-            rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir)
+            rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
                         "method": self.name, "version": self.version, "acquisition": "1.0", "biomarker": "FF"}
             json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)

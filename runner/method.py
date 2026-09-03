@@ -24,23 +24,27 @@ class QCUserDecisions:
     decision_status: Literal["yes", "no", "pending"]
     tag: Literal["swap", "muscle_off"] | None = None
     comment: str | None = None
-
+    action: str | None = None
 
 class Method (ABC): 
     name : str
     version : str
     comparability_criteria : list
     CHECKPOINTS: tuple[str, ...] = ()
-
+    ACTIONS: tuple[str, ...] = ()
     @abstractmethod
-    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None):
+    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None, debug=False, action=None):
         ...
 
     @abstractmethod
-    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None):
+    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False):
         ...
 
     def _check_checkpoint(self, name):
         if name not in self.CHECKPOINTS:
             raise ValueError(f"{name!r} not a checkpoint of {self.name}: {self.CHECKPOINTS}")
+
+    def _check_action(self, name):
+        if name is not None and name not in self.ACTIONS:
+            raise ValueError(f"{name!r} not an action of {self.name}: {self.ACTIONS}")
         

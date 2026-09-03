@@ -175,14 +175,14 @@ def parse_method(method_id):
 # @click.option("--mode", type=click.Choice([m.value for m in DeidentificationMode]), required=True)
 @click.option("--lang", "-l", default="en")
 # @click.option("--with-antecedent", is_flag=True, help="Include patient's history in report.")
-@click.option("--dev", "-d", is_flag=True, help="dev mode, detailed logging")
+@click.option("--debug", "-d", is_flag=True, help="debug mode, detailed logging, saves data at every checkpoint.")
 @click.option("--date", "-da", help="study date, optional, needed if the source directory has multiple studies. Ex : YYYY-MM-DD")
 @click.option("--quality-check-mode", "-qc-mode", type=click.Choice(["off", "checkpoint", "global"]), default="off", help="3 options : checkpoint, global or off. Checkpoint: there will be suspension at every step of the QC"
 "Global: QC is done without suspension checkpoint. Off: no QC. Not given: QC off")
 @click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, default one isoutput_dir")
 @click.option("--open-qc", "-oqc", is_flag=True, help="Opens QC folder")
 @cli_barrier
-def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  dev, date, quality_check_mode, quality_check_dir, open_qc):
+def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc):
     """from retrieval to one section of the report"""
     result = run_pipeline(
         # result_index=FileResultIndex(),
@@ -197,7 +197,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
         series=parse_series(series),
         exam_id=exam_id,
         lang=lang,
-        dev=dev,
+        debug=debug,
         exam_date=date,
         qc=quality_check_mode,
         qc_dir=quality_check_dir
@@ -216,8 +216,10 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
 @click.option("--comment", "-com", help="User comment on the QC, will appear in the Medical report. Example: 'SAR muscle segmentation failed : must not take it into account' ")
 @click.option("--tag", "-t", help="For common errors, use tag to caracterize it fastly. Must be in this list of tags : swap, muscle_off")
 @click.option("--quality-check", "-qc", is_flag=True, help="If here, the rest of the process will include quality chek checkpoints")
+@click.option("--debug", "-d", is_flag=True, help="debug mode, detailed logging, saves data at every checkpoint.")
+@click.option("--action", "-a", help="Launch method with this particular action. Actions are specific to the method. Example: --action global-swap")
 @cli_barrier
-def resume(job_file,  decision_status, output_dir, quality_check, comment, tag):
+def resume(job_file,  decision_status, output_dir, quality_check, comment, tag, debug, action):
     data = json.loads(Path(job_file).read_text(encoding="utf-8"))
     result = resume_pipeline(
         job_id=data["job_id"],
@@ -233,7 +235,9 @@ def resume(job_file,  decision_status, output_dir, quality_check, comment, tag):
         series=data["series"],
         tag=tag, 
         comment=comment,
-        output_dir=output_dir
+        output_dir=output_dir,
+        debug=debug,
+        action=action
     )
 
     if result.state == JobState.SUSPENDED:
