@@ -32,6 +32,8 @@ def make_qc_dir(output_dir, job_id: str) -> Path:
     return qc_dir
 
 def run_job(job, output_dir, debug=False, decision=None, action=None) :
+    if action and decision is not None:
+        decision.decision_status="pending"
     method = methods_registry.get(job.method_id)
     job.workdir = make_workdir(job.job_id)
     job.state = JobState.IN_PROGRESS
