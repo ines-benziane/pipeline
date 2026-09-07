@@ -15,10 +15,11 @@ def quality_check_seg(volume, roi, labels, step=1):
     anat, roi = 3D volumes
     draw_image from mutools = expect 2D slice + labels, returns one image"""
     volume = set_orientation(volume, "RAI")
+    vmin, vmax = float(np.min(volume)), float(np.max(volume))
     roi = asvolume(roi.array, spacing=tuple(roi.spacing), origin=tuple(roi.origin),
                    transform=tuple(map(tuple, np.reshape(roi.transform, (3,3)).T)))
     roi = interpolate_roi(volume, roi)
-    images = [draw_image(volume[:, :, k], roi = np.asarray(roi[:, :, k]), labels=labels, roialpha=0.5, show_labels=False) for k in  range (0,volume.shape[2], step)]
+    images = [draw_image(volume[:, :, k], roi = np.asarray(roi[:, :, k]), labels=labels, roialpha=0.5, show_labels=False, vmin=vmin, vmax=vmax) for k in  range (0,volume.shape[2], step)]
     return images
 
 def save_gif(frames, path, duration=80):
