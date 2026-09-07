@@ -68,35 +68,6 @@ def show_methods():
         click.echo(f"{name} {cls.version}")
 
 
-# @cli.command()
-# @click.option("--exam-id", required=True, help="Identifiant de l'examen.")
-# @click.option("--method", required=True, help="Nom de la méthode (voir: pipeline show-methods).")
-# @click.option("--segment", multiple=True,
-#               help="Segment à traiter. Répétable. Défaut: legs et thighs.")
-# @click.option("--dry-run", is_flag=True, help="Montre ce qui serait fait, sans rien créer.")
-# @cli_barrier
-# def apply_method(exam_id, method, segment, dry_run):
-#     """Applies a method on a study, creates corresponding job (task) for tracking."""
-#     segments = list(segment) if segment else ["legs", "thighs"]
-
-#     if dry_run:
-#         click.echo(f"{len(segments)} job(s) seraient créés :")
-#         for seg in segments:
-#             click.echo(f"  {exam_id}  {seg}  {method}")
-#         return
-
-#     for seg in segments:
-#         job = Job(exam_id=exam_id, segment=seg, method_id=method)
-#         try:
-#             run_job(job)
-#         except PipelineError as e:
-#             click.echo(f"{job.job_id}  {seg}  FAILED: {e}", err=True)
-#             if e.hint:
-#                 click.echo(f"{job.job_id}  {seg}  hint: {e.hint}", err=True)
-#             continue
-#         click.echo(f"{job.job_id}  {seg}  {job.state.value}")
-
-
 @cli.command()
 @click.option("--exam-id", required=True, help="Identifiant de l'examen.")
 @click.option("--output-dir", required=True, help="Dossier de sortie du rapport PDF.")
