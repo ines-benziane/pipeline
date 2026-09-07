@@ -26,7 +26,7 @@ from musegai.io import Image
 from musegai.api import run_model
 
 from methods.get_results.getresults import getresults
-from methods.quality_check.qc import quality_check_volumes, quality_check_seg
+from methods.quality_check.qc import quality_check_volumes, quality_check_seg, save_gif
 
 from results_writer.writer import parse_table
 from results_writer.json_writer import JsonWriter
@@ -84,9 +84,12 @@ class Dixon3ptMethod(Method) :
         if debug or qc in ("checkpoint", "global") :
             volume.write(Path(workdir) / "roi.mha", roi_obj)
             io.write_labels(Path(workdir) / "labels.txt", labels)
+            frames = quality_check_seg(mag_1, roi_obj, labels)
+            save_gif(frames, Path(workdir) / "segmentation.gif")
         if qc in ("checkpoint", "global"):
             volume.write(Path(qc_dir) / "roi.mha", roi_obj)
             io.write_labels(Path(qc_dir) / "labels.txt", labels)
+            save_gif(frames, Path(qc_dir) / "segmentation.gif")
         if qc == "checkpoint":
             raise QCCheckpoint(self.CHECKPOINTS[1])
         return rois, labels, exam_date
