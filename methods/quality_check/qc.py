@@ -32,5 +32,3 @@ def save_gif(frames, path, duration=100):
     duration: in ms, time on screen of each frame. """
     frames = [f.convert("P") for f in frames]
     frames[0].save(path, save_all=True, append_images=frames[1:], duration=duration, loop=0)
-
-def 
