@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
+from mutools.io import volume
+import logging
+log = logging.getLogger(__name__)
 
 @dataclass
 class Result :
@@ -48,4 +51,19 @@ class Method (ABC):
     def _check_action(self, name):
         if name is not None and name not in self.ACTIONS:
             raise ValueError(f"{name!r} not an action of {self.name}: {self.ACTIONS}")
+
+    def _dump_crash(self, workdir, **arrays):
+        """Best-effort dump of in-memory volumes to workdir/crash/ when a stage
+        raises under --debug. Write failures are logged, never re-raised."""
+        crash_dir = Path(workdir) / "crash"
+        try:
+            crash_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            log.warning("crash dump: could not create %s", crash_dir, exc_info=True)
+            return
+        for label, arr in arrays.items():
+            try:
+                volume.write(crash_dir / f"{label}.mha", arr)
+            except Exception:
+                log.warning("crash dump: could not write %s", label, exc_info=True)
         

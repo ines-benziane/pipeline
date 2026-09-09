@@ -1,11 +1,8 @@
 """Exception spine for the pipeline.
 
 `PipelineError` is for every *expected* failure: a bad exam id,
-missing results, an unparseable DICOM series. The CLI barrier catches it, prints
-a clean message and exits 1 - no traceback.
+missing results, an unparseable DICOM series.
 
-Anything that is NOT a `PipelineError` reaching the barrier is treated as a bug:
-full traceback in the log, exit 2.
 """
 
 
@@ -25,9 +22,9 @@ class PipelineError(Exception):
 
 class MethodNotFoundError(PipelineError):
     """No method is registered under the requested name."""
-    def __init__(self, method_id):
-        super().__init__(f"Unknown method {method_id!r}", hint="run: pipeline show-methods")
-        self.method_id = method_id
+    def __init__(self, method_name):
+        super().__init__(f"Unknown method {method_name!r}", hint="run: pipeline show-methods")
+        self.method_name = method_name
 
 
 class JobNotFoundError(PipelineError):
@@ -48,6 +45,8 @@ class DicomSelectionError(MethodError):
 class DixonReconstructionError(MethodError):
     """The Dixon fat/water reconstruction failed on otherwise valid input."""
 
+class T2MappingError(MethodError):
+    """The T2 mapping reconstruction failed"""
 
 class SegmentationError(MethodError):
     """The segmentation model failed to produce ROIs."""

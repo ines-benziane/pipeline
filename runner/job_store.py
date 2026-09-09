@@ -15,14 +15,14 @@ def save(job):
         "job_id": job.job_id,
         "exam_id": job.exam_id,
         "segment": job.segment,
-        "method_id": job.method_id,
+        "method_name": job.method_name,
         "series": job.series,
         "source_dir": job.source_dir,
         "state": job.state.value,
         "workdir": str(job.workdir) if job.workdir else None,
         "checkpoint": job.checkpoint,
         "exam_date": job.exam_date,
-        "other_params": job.other_params,
+        "method_params": job.method_params,
     }
 
     path = JOBS_DIR / f"{job.job_id}.json"
@@ -39,12 +39,12 @@ def load(job_id):
         job_id=data["job_id"],
         exam_id=data["exam_id"],
         segment=data["segment"],
-        method_id=data["method_id"],
+        method_name=data["method_name"],
         series=data["series"],
         source_dir=data["source_dir"],
         state=JobState(data["state"]),
         workdir=Path(data["workdir"]) if data["workdir"] else None,
         checkpoint=data["checkpoint"],
         exam_date=data.get("exam_date"),
-        other_params=data.get("other_params"),
+        method_params=data.get("method_params"),
     )

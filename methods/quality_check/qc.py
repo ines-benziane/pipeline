@@ -22,7 +22,7 @@ def quality_check_seg(volume, roi, labels, step=1):
     images = [draw_image(volume[:, :, k], roi = np.asarray(roi[:, :, k]), labels=labels, roialpha=0.5, show_labels=False, vmin=vmin, vmax=vmax) for k in  range (0,volume.shape[2], step)]
     return images
 
-def save_gif(frames, path, duration=80):
+def save_gif(frames, path, duration=100):
     """Comple images into GIF. 
     
     Args:

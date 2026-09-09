@@ -34,7 +34,7 @@ def make_qc_dir(output_dir, job_id: str) -> Path:
 def run_job(job, output_dir, debug=False, decision=None, action=None) :
     if action and decision is not None:
         decision.decision_status="pending"
-    method = methods_registry.get(job.method_id)
+    method = methods_registry.get(job.method_name)
     job.workdir = make_workdir(job.job_id)
     job.state = JobState.IN_PROGRESS
     log_path = job.workdir / "run.log"
@@ -49,7 +49,7 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
     logging.getLogger("docker").setLevel(logging.WARNING)
 
     job_store.save(job)
-    announce(f"Task {job.job_id} started - {job.method_id} / {job.segment}")
+    announce(f"Task {job.job_id} started - {job.method_name} / {job.segment}")
     if job.qc_dir is None:
         job.qc_dir = make_qc_dir(output_dir, job.job_id)
     try:
@@ -59,7 +59,7 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
                                               debug=debug)
         else:
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series,
-                                job.other_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action)
+                                job.method_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action)
 
     except QCCheckpoint as e:
         log.info("job %s suspended for QC (%s)", job.job_id, e)

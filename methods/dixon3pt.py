@@ -42,21 +42,6 @@ class Dixon3ptMethod(Method) :
     CHECKPOINTS = ("mutools", "segmentation")
     ACTIONS = ("global-swap",)
 
-    def _dump_crash(self, workdir, **arrays):
-        """Best-effort dump of in-memory volumes to workdir/crash/ when a stage
-        raises under --debug. Write failures are logged, never re-raised."""
-        crash_dir = Path(workdir) / "crash"
-        try:
-            crash_dir.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            log.warning("crash dump: could not create %s", crash_dir, exc_info=True)
-            return
-        for label, arr in arrays.items():
-            try:
-                volume.write(crash_dir / f"{label}.mha", arr)
-            except Exception:
-                log.warning("crash dump: could not write %s", label, exc_info=True)
-
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None, debug=False):
         mag_1 = abs(volumes[0])
         mag_2 = abs(volumes[1])

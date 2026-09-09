@@ -25,7 +25,7 @@ class PipelineOutcome:
 
 
 def run_pipeline(
-        report_generator, catalog, source_dir, acquisition_id, method_id,
+        report_generator, catalog, source_dir, acquisition_id, method,
         output_dir, series, qc, exam_id=None, patient_name=None, exam_date=None,
         debug=False, qc_dir=None, action=None, *, lang="en"
         ):
@@ -42,7 +42,7 @@ def run_pipeline(
 
     acquisition, seg_dict = next(iter(acquisition_id.items()))
     segment_name, side = next(iter(seg_dict.items()))
-    method_name, other_params = next(iter(method_id.items()))
+    method_name, method_params = method
     if qc_dir:
         qc_dir = Path(qc_dir)
         qc_dir.mkdir(parents=True, exist_ok=True)
@@ -50,7 +50,7 @@ def run_pipeline(
         with open(Path(source_dir) / "series_selection.yml", "w") as f:
             yaml.dump(series, f)
     job = Job(source_dir=source_dir, exam_id=exam_id, segment=segment_name,
-              method_id=method_name, series=series, other_params=other_params,
+              method_name=method_name, series=series, method_params=method_params,
               exam_date=exam_date, qc = qc, qc_dir = qc_dir)
     run_job(job, output_dir, debug, None, action)
     if job.state == JobState.SUSPENDED:

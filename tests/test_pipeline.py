@@ -48,13 +48,13 @@ def test_method_without_run_is_rejected():
 
 def test_job_reaches_results_ready():
     methods_registry.register(DummyMethod)
-    job = Job(job_id="test001", exam_id="exam_test", segment="legs", method_id="dummy")
+    job = Job(job_id="test001", exam_id="exam_test", segment="legs", method_name="dummy")
     run_job(job)
     assert job.state is JobState.RESULTS_READY
 
 
 def test_job_reaches_suspended():
     methods_registry.register(NotAutoValidMethod)
-    job = Job(job_id="test002", exam_id="exam_test", segment="legs", method_id="not_auto_valid")
+    job = Job(job_id="test002", exam_id="exam_test", segment="legs", method_name="not_auto_valid")
     run_job(job)
     assert job.state is JobState.SUSPENDED

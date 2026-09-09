@@ -26,12 +26,12 @@ class Job:
     exam_id: str
     source_dir: str
     segment: str
-    method_id: str
+    method_name: str
     series: list[int]
     state: JobState = JobState.PENDING
     job_id: str | None = None
     workdir: Path | None = None
-    other_params:  list[str] | None = None
+    method_params:  list[str] | None = None
     exam_date: str | None = None 
     qc: str | None = "off"
     checkpoint: str | None = None

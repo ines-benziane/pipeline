@@ -128,16 +128,14 @@ def parse_acquisition(acquisition_id):
     acquisition = acquisition or None
     return {acquisition: {segment: side}}
 
-def parse_method(method_id):
-    if not method_id:
-        return None
-    method_name, *params = method_id.split(":")
-    return {method_name: params}
+def parse_method(method):
+    method_name, *params = method.split(":")
+    return (method_name, params)
 
 @cli.command()
 @click.option("--exam-id", "-e", required=True)
 @click.option("--source-dir", "-sd",  required=True, help="Folder with the dicom ")
-@click.option("--method-id", "-m", required=True, help="method-id gathers the method's name and other optional parameters that might be needed by the method. Example : --method-name method_id:param1:param_2:param_3 ")
+@click.option("--method", "-m", required=True, help="Method name plus optional colon-separated params. Example: --method dixon3pt:param1:param2")
 @click.option("--acquisition-id", "-a", required=True, help="Acquisition parameters.Usage: segment:side:acquisition")
 @click.option("--output-dir", "-od", required=True, help="Fodler where the files (medical report, qc report or else) will be stored.")
 @click.option("--series", "-s", required=True, help="Acquisition parameters.Usage: --series 1,2,3")
@@ -151,7 +149,7 @@ def parse_method(method_id):
 @click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, default one isoutput_dir")
 @click.option("--open-qc", "-oqc", is_flag=True, help="Opens QC folder")
 @cli_barrier
-def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc):
+def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc):
     """from retrieval to one section of the report"""
     result = run_pipeline(
         # result_index=FileResultIndex(),
@@ -161,7 +159,7 @@ def process(exam_id, source_dir, method_id, acquisition_id, output_dir, series, 
         source_dir=source_dir,
         # mode=DeidentificationMode(mode),
         acquisition_id=parse_acquisition(acquisition_id),
-        method_id=parse_method(method_id),
+        method =parse_method(method),
         output_dir=output_dir,
         series=parse_series(series),
         exam_id=exam_id,
