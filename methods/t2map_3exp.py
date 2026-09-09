@@ -21,7 +21,7 @@ class T2Map3ExpMethod(Method):
     ACTIONS = ()
 
     def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc,
-            qc_dir, decision: QCUserDecisions | None = None, debug=False, action=None) :
+            qc_dir, decision: QCUserDecisions | None = None, debug=False, action=None, multicenter=False) :
         self._check_action(action)
         stack = DicomStack(source_dir)
         if date :
@@ -61,4 +61,9 @@ class T2Map3ExpMethod(Method):
                     **{f"echo_{i}": v for i, v in enumerate(volumes)})
             raise T2MappingError(f"T2 mapping reconstruction failed for {source_dir}") from exc
         if debug or qc in ("checkpoint", "global"):
+            if multicenter:
+                ...
+            ...
+        rois, labels, exam_date = dixon3pt.segmentation()
             
+

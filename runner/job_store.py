@@ -23,6 +23,7 @@ def save(job):
         "checkpoint": job.checkpoint,
         "exam_date": job.exam_date,
         "method_params": job.method_params,
+        "multicenter" : job.multicenter
     }
 
     path = JOBS_DIR / f"{job.job_id}.json"
@@ -47,4 +48,5 @@ def load(job_id):
         checkpoint=data["checkpoint"],
         exam_date=data.get("exam_date"),
         method_params=data.get("method_params"),
+        multicenter=data.get("multicenter")
     )

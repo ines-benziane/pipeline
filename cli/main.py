@@ -148,8 +148,9 @@ def parse_method(method):
 "Global: QC is done without suspension checkpoint. Off: no QC. Not given: QC off")
 @click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, default one isoutput_dir")
 @click.option("--open-qc", "-oqc", is_flag=True, help="Opens QC folder")
+@click.option("--multicenter", "-mc", is_flag=True, help="For multicentric values. Implies special QC to check muscles in ITK-snap, as required in QC.")
 @cli_barrier
-def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc):
+def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc, multicenter):
     """from retrieval to one section of the report"""
     result = run_pipeline(
         # result_index=FileResultIndex(),
@@ -167,7 +168,8 @@ def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lan
         debug=debug,
         exam_date=date,
         qc=quality_check_mode,
-        qc_dir=quality_check_dir
+        qc_dir=quality_check_dir,
+        multicenter=multicenter
     )
     if result.status == "suspended":
         click.echo(f"Job {result.job_id} suspended for QC review (checkpoint: {result.checkpoint})")

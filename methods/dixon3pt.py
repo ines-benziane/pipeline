@@ -90,7 +90,7 @@ class Dixon3ptMethod(Method) :
         return json_path      
         
     def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
-             decision: QCUserDecisions | None = None, debug=False, action=None):
+             decision: QCUserDecisions | None = None, debug=False, action=None, multicenter=False):
         self._check_action(action)
         stack = DicomStack(source_dir)
         if date :
@@ -166,7 +166,7 @@ class Dixon3ptMethod(Method) :
             provenance={"name": self.name, "version": self.version},
         )
 
-    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False):
+    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False):
         self._check_checkpoint(name)
         if name == "mutools":
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())

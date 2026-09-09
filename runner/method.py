@@ -37,11 +37,11 @@ class Method (ABC):
     CHECKPOINTS: tuple[str, ...] = ()
     ACTIONS: tuple[str, ...] = ()
     @abstractmethod
-    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None, debug=False, action=None):
+    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None, debug=False, action=None, multicenter=False):
         ...
 
     @abstractmethod
-    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False):
+    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False):
         ...
 
     def _check_checkpoint(self, name):

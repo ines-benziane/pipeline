@@ -36,6 +36,7 @@ class Job:
     qc: str | None = "off"
     checkpoint: str | None = None
     qc_dir: Path | None = None
+    multicenter: bool | None = False
 
     def __post_init__(self):
         if self.job_id is None:

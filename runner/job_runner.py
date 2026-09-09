@@ -56,10 +56,10 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
         if job.checkpoint:
             result = method.handle_checkpoint(name=job.checkpoint, workdir=job.workdir, segment=job.segment,
                                               exam_id=job.exam_id, qc=job.qc, qc_dir=job.qc_dir, decision=decision,
-                                              debug=debug)
+                                              debug=debug, multicenter=job.multicenter)
         else:
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series,
-                                job.method_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action)
+                                job.method_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action, job.multicenter)
 
     except QCCheckpoint as e:
         log.info("job %s suspended for QC (%s)", job.job_id, e)
