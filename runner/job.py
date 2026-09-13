@@ -31,12 +31,13 @@ class Job:
     state: JobState = JobState.PENDING
     job_id: str | None = None
     workdir: Path | None = None
-    method_params:  list[str] | None = None
+    method_params:  dict | None = None
     exam_date: str | None = None 
     qc: str | None = "off"
     checkpoint: str | None = None
     qc_dir: Path | None = None
     multicenter: bool | None = False
+    seg_series: dict | None = None
 
     def __post_init__(self):
         if self.job_id is None:

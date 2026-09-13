@@ -9,6 +9,7 @@ import click
 from adapters.medical_report_generator import MedicalReportGenerator
 from methods.dummy import DummyMethod
 from methods.dixon3pt import Dixon3ptMethod
+from methods.t2map_3exp import T2Map3ExpMethod
 
 from runner import methods_registry
 from runner.errors import PipelineError
@@ -25,6 +26,7 @@ from adapters.file_result_index import FileResultIndex
 
 methods_registry.register(DummyMethod)
 methods_registry.register(Dixon3ptMethod)
+methods_registry.register(T2Map3ExpMethod)
 
 log = logging.getLogger(__name__)
 
@@ -129,8 +131,9 @@ def parse_acquisition(acquisition_id):
     return {acquisition: {segment: side}}
 
 def parse_method(method):
-    method_name, *params = method.split(":")
-    return (method_name, params)
+    name, *raw = method.split(":")
+    params = dict(p.split("=", 1) for p in raw)
+    return (name, params)
 
 @cli.command()
 @click.option("--exam-id", "-e", required=True)
@@ -149,8 +152,9 @@ def parse_method(method):
 @click.option("--quality-check-dir", "-qc-dir", help="Indicates where the qc report has to go. If not given, default one isoutput_dir")
 @click.option("--open-qc", "-oqc", is_flag=True, help="Opens QC folder")
 @click.option("--multicenter", "-mc", is_flag=True, help="For multicentric values. Implies special QC to check muscles in ITK-snap, as required in QC.")
+@click.option("--seg-series", "-ss", help="For now, only dixon3pt method can do the segmentation. To launch another method and get the segmentation, indicate here series number of dixon dicom.")
 @cli_barrier
-def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc, multicenter):
+def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc, multicenter, seg_series):
     """from retrieval to one section of the report"""
     result = run_pipeline(
         # result_index=FileResultIndex(),
@@ -169,7 +173,8 @@ def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lan
         exam_date=date,
         qc=quality_check_mode,
         qc_dir=quality_check_dir,
-        multicenter=multicenter
+        multicenter=multicenter,
+        seg_series=parse_series(seg_series)
     )
     if result.status == "suspended":
         click.echo(f"Job {result.job_id} suspended for QC review (checkpoint: {result.checkpoint})")

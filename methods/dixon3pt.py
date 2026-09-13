@@ -28,8 +28,8 @@ from musegai.api import run_model
 from methods.get_results.getresults import getresults
 from methods.quality_check.qc import quality_check_volumes, quality_check_seg, save_gif
 
-from results_writer.writer import parse_table
-from results_writer.json_writer import JsonWriter
+
+
 
 MODEL_BY_SEGMENT = {"legs": "museg-legs:model1", "thighs": "museg-thighs:model3"}
 
@@ -90,13 +90,14 @@ class Dixon3ptMethod(Method) :
         return json_path      
         
     def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
-             decision: QCUserDecisions | None = None, debug=False, action=None, multicenter=False):
+             decision: QCUserDecisions | None = None, debug=False, action=None, multicenter=False,
+             seg_series=None):
         self._check_action(action)
         stack = DicomStack(source_dir)
         if date :
-            stack = stack(SeriesNumber=series, StudyDate=date)
+                stack = stack(SeriesNumber=series, StudyDate=date)
         else :
-            stack = stack(SeriesNumber=series)
+                stack = stack(SeriesNumber=series)
         if not stack :
             raise DicomSelectionError(
                 f"No DICOM series matching {series} in {source_dir}",
@@ -111,6 +112,10 @@ class Dixon3ptMethod(Method) :
             raise DicomSelectionError(
                 f"Selected series in {source_dir} are not a readable 3-point Dixon acquisition"
             ) from exc
+        if seg_series:
+            announce("Dixon 3pt segmentation...", level=1)
+            rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
+            return (rois, labels, exam_date)
         mask = make_mask(*volumes, axis=2, threshold=10)
         announce("Dixon 3pt reconstruction...", level=1)
         try :

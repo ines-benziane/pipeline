@@ -37,7 +37,8 @@ class Method (ABC):
     CHECKPOINTS: tuple[str, ...] = ()
     ACTIONS: tuple[str, ...] = ()
     @abstractmethod
-    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None, debug=False, action=None, multicenter=False):
+    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None, debug=False,action=None,
+            multicenter=False, seg_series=None):
         ...
 
     @abstractmethod

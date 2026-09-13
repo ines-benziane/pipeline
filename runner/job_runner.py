@@ -56,7 +56,7 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
         if job.checkpoint:
             result = method.handle_checkpoint(name=job.checkpoint, workdir=job.workdir, segment=job.segment,
                                               exam_id=job.exam_id, qc=job.qc, qc_dir=job.qc_dir, decision=decision,
-                                              debug=debug, multicenter=job.multicenter)
+                                              debug=debug, multicenter=job.multicenter, seg_series=job.seg_series)
         else:
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series,
                                 job.method_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action, job.multicenter)
