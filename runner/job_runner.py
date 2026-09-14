@@ -59,7 +59,8 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
                                               debug=debug, multicenter=job.multicenter, seg_series=job.seg_series)
         else:
             result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series,
-                                job.method_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action, job.multicenter)
+                                job.method_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action,
+                                job.multicenter, job.seg_series)
 
     except QCCheckpoint as e:
         log.info("job %s suspended for QC (%s)", job.job_id, e)
