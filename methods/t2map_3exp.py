@@ -31,7 +31,7 @@ class T2Map3ExpMethod(Method):
             metadata = {**metadata,
                         "qc_decision": decision.decision_status,
                         "qc_comment": decision.comment}
-        table = getresults(volumes={"t2map": results}, roi=rois[0], labels=labels, method_name="t2map_3exp")
+        table = getresults(volumes={"t2map": results["t2map "]}, roi=rois[0], labels=labels, method_name="t2map_3exp")
         exam = parse_table(table, metadata)
         json_path = JsonWriter().write(exam, Path(workdir))
         return json_path      
