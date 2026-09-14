@@ -12,6 +12,7 @@ from runner.errors import (
     T2MappingError,
 )
 
+from mutools.io.volume import asvolume
 from mutools.t2mapping.readers import parse_dicom_msme
 from mutools.t2mapping.utils import clusterize
 from mutools.t2mapping.t2map_3exp_dict import fit_fat, fit
@@ -81,6 +82,21 @@ class T2Map3ExpMethod(Method):
                     roi=roi,
                     **{f"echo_{i}": v for i, v in enumerate(volumes)})
             raise T2MappingError(f"T2 mapping reconstruction failed for {source_dir}") from exc
+
+        # results["t2map"]/"t2cint"/"ffmap" come out of fit() as raw ndarrays (utils.fillvolume),
+        # with no geometry (no .spacing/.origin/.transform). The segmentation ROI comes from a
+        # DIFFERENT acquisition (Dixon, via seg_series) with its own grid/shape. Without real
+        # geometry on the T2 side, getresults's interpolate_roi(ref, roi) degenerates to aligning
+        # both volumes by raw array index instead of physical position — since the two grids don't
+        # share shape/resolution, almost nothing overlaps (only 1/8 muscles survived in testing).
+        # Fix: tag the T2 volumes with the real T2 acquisition geometry (copied from `volumes[0]`,
+        # a proper mutools Volume from parse_dicom_msme) before they reach getresults. Same pattern
+        # as the ROI geometry fix used for the segmentation QC gif (interpolate_roi there too).
+        t2_ref = volumes[0]
+        for key in ("t2map", "t2cint", "ffmap"):
+            results[key] = asvolume(results[key], spacing=t2_ref.spacing, origin=t2_ref.origin,
+                                     transform=t2_ref.transform)
+
         if debug or qc in ("checkpoint", "global"):
             if multicenter:
                 ...

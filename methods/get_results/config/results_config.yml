@@ -93,7 +93,8 @@ t2map_3exp:
     - name: FF
       action: mean(ffmap)
       private: true
-      filters: [(ffmap >= 0) & (ffmap <= 1)]
     - name: OUTLINE
       how: slice
       action: outline()
+      private: true
+      filters: [(ffmap >= 0) & (ffmap <= 1)]
