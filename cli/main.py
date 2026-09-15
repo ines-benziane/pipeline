@@ -18,6 +18,7 @@ from runner.job_runner import run_job, RESULT_DIR
 from runner.exam_retriever import DeidentificationMode
 from runner.pipeline import run_pipeline
 from runner.resume import resume_pipeline
+from runner.parsing import parse_series, parse_acquisition, parse_method
 
 from adapters.dummy_exam_catalog import DummyExamCatalog
 from adapters.dummy_exam_retriever import DummyExamRetriever
@@ -114,27 +115,6 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 
 ### TO DO : batch sur plusieurs examens
 
-def parse_series(series):
-    if not series:
-        return None
-    series_numbers = [int(n) for n in series.split(",")]
-    return series_numbers
-
-def parse_acquisition(acquisition_id):
-    if not acquisition_id:
-        return None
-    parts = acquisition_id.split(":")
-    parts += [""] * (3 - len(parts))
-    segment, side, acquisition,= parts[:3]
-    side = side or None
-    acquisition = acquisition or None
-    return {acquisition: {segment: side}}
-
-def parse_method(method):
-    name, *raw = method.split(":")
-    params = dict(p.split("=", 1) for p in raw)
-    return (name, params)
-
 @cli.command()
 @click.option("--exam-id", "-e", required=True)
 @click.option("--source-dir", "-sd",  required=True, help="Folder with the dicom ")
@@ -158,8 +138,8 @@ def parse_method(method):
 def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc, multicenter, seg_series, action):
     """from retrieval to one section of the report"""
     result = run_pipeline(
-        # result_index=FileResultIndex(),
-        report_generator=MedicalReportGenerator(),
+        # # result_index=FileResultIndex(),
+        # report_generator=MedicalReportGenerator(),
         catalog=DummyExamCatalog(),
         # with_antecedent=with_antecedent,
         source_dir=source_dir,
@@ -169,7 +149,6 @@ def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lan
         output_dir=output_dir,
         series=parse_series(series),
         exam_id=exam_id,
-        lang=lang,
         debug=debug,
         exam_date=date,
         qc=quality_check_mode,
@@ -183,7 +162,7 @@ def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lan
         if open_qc and result.qc_dir:
             click.launch(str(result.qc_dir))
     else:
-        click.echo(str(result.pdf_path))
+        click.echo(f"Job {result.job_id} done — results ready.")
 
 @cli.command()
 @click.option("--job-id", "-f", required=True, help="Job to resume's ID")

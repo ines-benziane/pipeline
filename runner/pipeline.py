@@ -14,7 +14,7 @@ from runner.method import QCUserDecisions
 class PipelineOutcome:
     """Result of run_pipeline.
 
-    status "done"      -> pdf_path is set.
+    status "done"      -> job done, result file created.
     status "suspended" -> job_id and checkpoint are set; the job waits for QC.
     """
     exam_id: str
@@ -25,10 +25,9 @@ class PipelineOutcome:
     qc_dir: Path | None = None
 
 
-def run_pipeline(
-        report_generator, catalog, source_dir, acquisition_id, method,
+def run_pipeline(catalog, source_dir, acquisition_id, method,
         output_dir, series, qc, exam_id=None, patient_name=None, exam_date=None,
-        debug=False, qc_dir=None, action=None, multicenter=False, seg_series=None,*, lang="en"
+        debug=False, qc_dir=None, action=None, multicenter=False, seg_series=None
         ):
     if not exam_id :
         exams = catalog.find_exams(patient_name)
@@ -63,7 +62,7 @@ def run_pipeline(
             checkpoint=job.checkpoint,
             qc_dir=job.qc_dir
         )
-    exam_ids_for_report = [exam_id]
+    # exam_ids_for_report = [exam_id]
     # if with_antecedent :
     #     related = catalog.find_related_exams(exam_id)
     #     if len(related) == 0 :
@@ -71,11 +70,11 @@ def run_pipeline(
     #     most_recent = max(related, key=lambda e: e.exam_date)
                             
     #     exam_ids_for_report.append(most_recent.exam_id)
-    pdf_path = report_generator.generate(exam_ids_for_report, RESULT_DIR, output_dir, lang=lang)
+    # pdf_path = report_generator.generate(exam_ids_for_report, RESULT_DIR, output_dir, lang=lang)
     return PipelineOutcome(
         exam_id=exam_id,
         status="done",
-        pdf_path=pdf_path,
+        pdf_path=None,
         job_id=job.job_id,
     )
 
