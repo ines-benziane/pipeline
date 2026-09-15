@@ -8,6 +8,7 @@ from runner import messages
 from runner.exam_catalog import AmbiguousExamError, NoExamForPatientError
 from runner.job import Job, JobState
 from runner.job_runner import RESULT_DIR, run_job
+from runner.method import QCUserDecisions
 
 @dataclass
 class PipelineOutcome:
@@ -27,7 +28,7 @@ class PipelineOutcome:
 def run_pipeline(
         report_generator, catalog, source_dir, acquisition_id, method,
         output_dir, series, qc, exam_id=None, patient_name=None, exam_date=None,
-        debug=False, qc_dir=None, action=None, multicenter=False, seg_series=None, *, lang="en"
+        debug=False, qc_dir=None, action=None, multicenter=False, seg_series=None,*, lang="en"
         ):
     if not exam_id :
         exams = catalog.find_exams(patient_name)
@@ -53,7 +54,7 @@ def run_pipeline(
               method_name=method_name, series=series, method_params=method_params,
               exam_date=exam_date, qc = qc, qc_dir = qc_dir, multicenter = multicenter, 
               seg_series=seg_series)
-    run_job(job, output_dir, debug, None, action)
+    run_job(job=job, output_dir=output_dir, debug=debug, decision=None, action=action)
     if job.state == JobState.SUSPENDED:
         return PipelineOutcome(
             exam_id=exam_id,
