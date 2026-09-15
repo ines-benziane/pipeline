@@ -28,8 +28,8 @@ from musegai.api import run_model
 from methods.get_results.getresults import getresults
 from methods.quality_check.qc import quality_check_volumes, quality_check_seg, save_gif
 
-
-
+from results_writer.writer import parse_table
+from results_writer.json_writer import JsonWriter
 
 MODEL_BY_SEGMENT = {"legs": "museg-legs:model1", "thighs": "museg-thighs:model3"}
 
