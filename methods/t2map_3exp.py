@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import numpy as np
+
 from dicomstack import DicomStack
 
 from methods.dixon3pt import Dixon3ptMethod, MODEL_BY_SEGMENT
@@ -32,9 +34,18 @@ class T2Map3ExpMethod(Method):
             metadata = {**metadata,
                         "qc_decision": decision.decision_status,
                         "qc_comment": decision.comment}
+        # rois[0] is a musegai Image (dixon geometry, in principle already correct — see
+        # write-up). But getresults/interpolate_roi does an internal asvolume(roi) that drops
+        # geometry from a raw musegai object (same pitfall as the segmentation GIF fix). Without
+        # re-wrapping it explicitly here, it silently gets identity geometry, which — now that
+        # "t2map" carries the real T2 geometry — misaligns the two grids instead of aligning them.
+        # .T: roi.transform is row-major (SITK GetDirection), mutools wants column-sequence.
+        roi = rois[0]
+        roi_vol = asvolume(roi.array, spacing=roi.spacing, origin=roi.origin,
+                           transform=np.reshape(roi.transform, (3, 3)).T)
         table = getresults(
             volumes={"t2map": results["t2map"], "t2cint": results["t2cint"], "ffmap": results["ffmap"]},
-            roi=rois[0], labels=labels, method_name="t2map_3exp",
+            roi=roi_vol, labels=labels, method_name="t2map_3exp",
         )
         exam = parse_table(table, metadata)
         json_path = JsonWriter().write(exam, Path(workdir))
