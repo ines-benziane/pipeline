@@ -78,7 +78,10 @@ class MainApp():
 
     def _add_section(self):
         """Create a new SectionForm inside sections_frame and track it"""
-        section = SectionForm(parent=self.sections_frame, on_delete=self._remove_section)
+        section = SectionForm(
+            parent=self.sections_frame, on_delete=self._remove_section,
+            default_name=f"Section {len(self.sections) + 1}",
+        )
         self.sections.append(section)
 
     def _remove_section(self, section):

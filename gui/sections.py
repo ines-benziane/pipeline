@@ -2,30 +2,52 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 
 from runner import methods_registry
+from runner.parsing import parse_acquisition
 from widgets import make_shadow_button
 
 class SectionForm:
-    def __init__(self, parent, on_delete=None):
+    def __init__(self, parent, on_delete=None, default_name="Section"):
         # wrapper: a plain frame holding the section box + the delete button as SIBLINGS,
         # so the button can float outside the box's border (a child can never be
         # positioned outside its own parent's bounds — it gets clipped).
         self.wrapper = tk.Frame(parent, bg=parent.cget("bg"))
         self.wrapper.pack(fill=tk.X, padx=8, pady=4)
 
-        self.frame = ttk.LabelFrame(self.wrapper, text="Section", padding=8, style="TLabelframe")
+        self.default_name = default_name
+        self.frame = ttk.LabelFrame(self.wrapper, text=default_name, padding=8, style="TLabelframe")
         self.frame.pack(fill=tk.X, pady=(12, 0))
         self.on_delete = on_delete
 
         self._build_ui()
         self._load_defaults()
         self._build_delete_button()
+        self.refresh_title()
+        self.method_entry.bind("<FocusOut>", lambda event: self.refresh_title())
+        self.acquisition_id_entry.bind("<FocusOut>", lambda event: self.refresh_title())
+
+    def display_name(self):
+        """Human-readable label for this section, e.g. 'dixon3pt — thighs'."""
+        method = self.get_value(self.method_entry)
+        if not method:
+            return self.default_name
+        try:
+            parsed = parse_acquisition(self.get_value(self.acquisition_id_entry))
+            _, seg_dict = next(iter(parsed.items()))
+            segment, _ = next(iter(seg_dict.items()))
+        except Exception:
+            return method
+        return f"{method} — {segment}"
+
+    def refresh_title(self):
+        """Update the section box's visible title from current field values."""
+        self.frame.config(text=self.display_name())
 
     def _build_delete_button(self):
         """Small X button, floating above the section box's top-right corner, outside it."""
         if self.on_delete is None:
             return
         tk.Button(
-            self.wrapper, text="✕", command=lambda: self.on_delete(self),
+            self.wrapper, text="X", command=lambda: self.on_delete(self),
             bg=self.wrapper.cget("bg"), fg="#c0392b", relief="flat", bd=0,
         ).place(relx=1.0, x=0, y=0, anchor="ne")
 
