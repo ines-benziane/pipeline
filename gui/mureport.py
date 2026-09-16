@@ -14,6 +14,13 @@ from adapters.dummy_exam_catalog import DummyExamCatalog
 from runner.errors import PipelineError
 from runner.parsing import parse_acquisition, parse_method, parse_series
 from runner.pipeline import run_pipeline
+from runner import methods_registry
+from methods.dixon3pt import Dixon3ptMethod
+from methods.t2map_3exp import T2Map3ExpMethod
+
+
+methods_registry.register(Dixon3ptMethod)
+methods_registry.register(T2Map3ExpMethod)
 
 class MainApp():
     """Gathered all section forms and call run_pipeline for each of them"""
