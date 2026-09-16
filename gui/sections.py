@@ -42,6 +42,16 @@ class SectionForm:
         """Update the section box's visible title from current field values."""
         self.frame.config(text=self.display_name())
 
+    STATUS_STYLES = {
+        "pending": "TLabelframe",
+        "running": "Running.TLabelframe",
+        "done": "Done.TLabelframe",
+        "error": "Error.TLabelframe",
+    }
+
+    def set_status(self, status):
+        """Recolor the section box border to reflect its run status."""
+        self.frame.config(style=self.STATUS_STYLES[status])
     def _build_delete_button(self):
         """Small X button, floating above the section box's top-right corner, outside it."""
         if self.on_delete is None:

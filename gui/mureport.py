@@ -41,11 +41,19 @@ class MainApp():
         style.configure("TLabelframe", background=BG, bordercolor=PRIMARY)
         style.configure("TLabelframe.Label", foreground=PRIMARY, font=("Helvetica", 12, "bold"))
         style.configure("Accent.Horizontal.TProgressbar", background=PRIMARY, troughcolor=BG)
+        style.configure("Running.TLabelframe", background=BG, bordercolor="#0589c2")
+        style.configure("Running.TLabelframe.Label", foreground="#0589c2", font=("Helvetica", 12, "bold"))
+        style.configure("Done.TLabelframe", background=BG, bordercolor="#27ae60")
+        style.configure("Done.TLabelframe.Label", foreground="#27ae60", font=("Helvetica", 12, "bold"))
+        style.configure("Error.TLabelframe", background=BG, bordercolor="#c0392b")
+        style.configure("Error.TLabelframe.Label", foreground="#c0392b", font=("Helvetica", 12, "bold"))
         self.root.title("MuReport")
         self.root.geometry("1500x1000")
         self.root.resizable(True, True)
         self.sections = []
-        progress.set_listener(lambda text, level: self._set_status(text))
+        self._current_section_label = ""
+        progress.set_listener(self._on_announce)
+
 
         self.root.option_add("*Font", ("Helvetica", 14))
         ttk.Style().configure(".", font=("Helvetica", 14))
@@ -55,7 +63,7 @@ class MainApp():
         self.sections_frame.pack(fill=tk.X)
         self._add_section()
         self._add_section_btn = tk.Button(
-            self.root, text="+ Ajouter une section",
+            self.root, text="+ Add section",
             command=self._add_section,
             bg="#e4e6e9", fg=PRIMARY, relief="flat",
         )
@@ -87,7 +95,7 @@ class MainApp():
     def _remove_section(self, section):
         """Destroy a section's widgets and stop tracking it. Always keep at least one."""
         if len(self.sections) <= 1:
-            self._set_status("Il faut garder au moins une section.")
+            self._set_status("You must keep at least one section.")
             return
         section.wrapper.destroy()
         self.sections.remove(section)
@@ -111,9 +119,13 @@ class MainApp():
         run_container.pack(pady=(0, 8))
 
     def _set_status(self, text: str):
-        """Met à jour le label de statut (thread-safe)."""
+        """Update the status label (thread-safe)."""
         self.root.after(0, lambda: self._status_var.set(text))
 
+    def _on_announce(self, text, level):
+        """progress.announce() listener: prefix pipeline step names with the current section."""
+        prefix = f"{self._current_section_label} - " if self._current_section_label else ""
+        self._set_status(prefix + text)
 
     def _validate(self, section):
         """Return an error string if required fields are missing, else None."""
@@ -131,66 +143,75 @@ class MainApp():
             return "Missing fields : " + ", ".join(missing)
         return None
 
+    def _validate_all(self):
+        """Validate every section before running anything. Return an error string, or None"""
+        for section in self.sections:
+            error = self._validate(section)
+            if error:
+                return f"{section.display_name()}: {error}"
+
+    def _build_kwargs(self, section):
+        """Read one section's fields into run_pipeline kwargs."""
+        return dict(
+                        source_dir=section.source_dir_entry.get().strip(),
+            acquisition_id=parse_acquisition(section.get_value(section.acquisition_id_entry)),
+            method=parse_method(section.method_entry.get().strip()),
+            output_dir=section.output_dir_entry.get().strip(),
+            series=parse_series(section.series_entry.get().strip()),
+            qc=section.qc_mode_entry.get().strip() or "global",
+            exam_id=section.exam_id_entry.get().strip() or None,
+            exam_date=section.date_entry.get().strip() or None,
+            debug=section.debug_var.get(),
+            action=section.action_entry.get().strip() or None,
+            multicenter=section.multicenter_var.get(),
+            seg_series=parse_series(section.seg_series_entry.get().strip()),
+        )
+
     def _on_manage(self):
-        """Read section 0's fields (main thread), then hand off to a worker thread."""
-        section = self.sections[0]
-        error = self._validate(section)
+        """Validate every section (main thread), then run them all sequentially in a worker thread."""
+        error = self._validate_all()
         if error:
             self._set_status(error)
             return
-        try:
-            kwargs = dict(
-                source_dir=section.source_dir_entry.get().strip(),
-                acquisition_id=parse_acquisition(section.get_value(section.acquisition_id_entry)),
-                method=parse_method(section.method_entry.get().strip()),
-                output_dir=section.output_dir_entry.get().strip(),
-                series=parse_series(section.series_entry.get().strip()),
-                qc=section.qc_mode_entry.get().strip() or "global",
-                exam_id=section.exam_id_entry.get().strip() or None,
-                exam_date=section.date_entry.get().strip() or None,
-                debug=section.debug_var.get(),
-                action=section.action_entry.get().strip() or None,
-                multicenter=section.multicenter_var.get(),
-                seg_series=parse_series(section.seg_series_entry.get().strip()),
-            )
-        except Exception as exc:
-            messagebox.showerror("Invalid input", f"{type(exc).__name__}: {exc}")
-            return
 
         self._run_btn.config(state="disabled")
-        self._set_status("Running...")
         self._progress.start()
-        threading.Thread(target=self._run_job, kwargs=kwargs, daemon=True).start()
+        threading.Thread(target=self._run_all, daemon=True).start()
 
-    def _run_job(self, **kwargs):
-        """Runs off the main thread: calls run_pipeline, then reports back via .after()."""
-        try:
-            result = run_pipeline(catalog=DummyExamCatalog(), **kwargs)
-        except PipelineError as exc:
-            self.root.after(0, self._finish, None, str(exc))
-            return
-        except Exception as exc:
-            self.root.after(0, self._finish, None, f"{type(exc).__name__}: {exc}")
-            raise
+    def _run_all(self, **kwargs):
+        """Runs off the main thread: executes every section's pipeline, in order."""
+        total = len(self.sections)
+        for i, section in enumerate(self.sections, start=1):
+            self._current_section_label = f"Section {i}/{total} ({section.display_name})"
+            self.root.after(0, section.set_status, "running")
+            try:
+                kwargs = self._build_kwargs(section)
+                result = run_pipeline(catalog=DummyExamCatalog(), **kwargs)
+            except PipelineError as exc:
+                self.root.after(0, self._finish, None, str(exc))
+                return
+            except Exception as exc:
+                self.root.after(0, self._finish, None, f"{type(exc).__name__}: {exc}")
+                self.root.after(0, self._finish, f"{type(exc).__name__}: {exc}")
+                raise
 
-        if result.status == "suspended":
-            info = ("Suspended for QC", f"Job {result.job_id} suspended (checkpoint: {result.checkpoint}).")
-            self.root.after(0, self._finish, info, None)
-        else:
-            info = ("Done", f"Job {result.job_id} done — results written.")
-            self.root.after(0, self._finish, info, None)
+            # TO DO: "suspended" (QC checkpoint) GETS THE ERROR COLOR FOR NOW 
+            if result.status == "suspended":
+                self.root.after(0, section.set_status, "error")
+            else:
+                self.root.after(0, section.set_status, "done")
+        self.root.after(0, section.set_finish, None)
+            
 
     def _finish(self, info, error):
-        """Runs back on the main thread: stop progress, re-enable button, show result."""
+        """Runs back on the main thread: stop progress, re-enable button, report the outcome."""
         self._progress.stop()
         self._run_btn.config(state="normal")
         if error:
             self._set_status("Error")
             messagebox.showerror("Error", error)
         else:
-            title, msg = info
-            self._set_status(title)
-            messagebox.showinfo(title, msg)
+            self._set_status("All sections done.")
 
 
 if __name__ == "__main__":
