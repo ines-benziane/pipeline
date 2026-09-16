@@ -175,6 +175,7 @@ class MainApp():
             return
 
         self._run_btn.config(state="disabled")
+        self._add_section_btn.config(state="disabled")
         self._progress.start()
         threading.Thread(target=self._run_all, daemon=True).start()
 
@@ -209,6 +210,7 @@ class MainApp():
         """Runs back on the main thread: stop progress, re-enable button, report the outcome."""
         self._progress.stop()
         self._run_btn.config(state="normal")
+        self._add_section_btn.config(state="normal")
         self._current_section_label = ""
         if error:
             self._set_status("Error — see message")

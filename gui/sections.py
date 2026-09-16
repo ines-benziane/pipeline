@@ -15,7 +15,7 @@ class SectionForm:
 
         self.default_name = default_name
         self.frame = ttk.LabelFrame(self.wrapper, text=default_name, padding=8, style="TLabelframe")
-        self.frame.pack(fill=tk.X, pady=(12, 0))
+        self.frame.pack(fill=tk.X, pady=(18, 0))
         self.on_delete = on_delete
 
         self._build_ui()
@@ -59,7 +59,8 @@ class SectionForm:
         tk.Button(
             self.wrapper, text="X", command=lambda: self.on_delete(self),
             bg=self.wrapper.cget("bg"), fg="#c0392b", relief="flat", bd=0,
-        ).place(relx=1.0, x=0, y=0, anchor="ne")
+            font=("Helvetica", 9), padx=0, pady=0,
+        ).place(relx=1.0, x=-2, y=2, width=16, height=16, anchor="ne")
 
     def _browse_dir(self, entry):
         """Open a folder picker and fill the given entry with the chosen path."""
