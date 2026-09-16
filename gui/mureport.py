@@ -178,37 +178,40 @@ class MainApp():
         self._progress.start()
         threading.Thread(target=self._run_all, daemon=True).start()
 
-    def _run_all(self, **kwargs):
+    def _run_all(self):
         """Runs off the main thread: executes every section's pipeline, in order."""
         total = len(self.sections)
         for i, section in enumerate(self.sections, start=1):
-            self._current_section_label = f"Section {i}/{total} ({section.display_name})"
+            self._current_section_label = f"Section {i}/{total} ({section.display_name()})"
             self.root.after(0, section.set_status, "running")
             try:
                 kwargs = self._build_kwargs(section)
                 result = run_pipeline(catalog=DummyExamCatalog(), **kwargs)
             except PipelineError as exc:
-                self.root.after(0, self._finish, None, str(exc))
+                self.root.after(0, section.set_status, "error")
+                self.root.after(0, self._finish, str(exc))
                 return
             except Exception as exc:
-                self.root.after(0, self._finish, None, f"{type(exc).__name__}: {exc}")
+                self.root.after(0, section.set_status, "error")
                 self.root.after(0, self._finish, f"{type(exc).__name__}: {exc}")
                 raise
 
-            # TO DO: "suspended" (QC checkpoint) GETS THE ERROR COLOR FOR NOW 
+            # TODO: "suspended" (QC checkpoint) gets the "error" color for now — it isn't a
+            # failure, but there's no GUI resume flow yet, so it needs attention just like one.
             if result.status == "suspended":
                 self.root.after(0, section.set_status, "error")
             else:
                 self.root.after(0, section.set_status, "done")
-        self.root.after(0, section.set_finish, None)
-            
 
-    def _finish(self, info, error):
+        self.root.after(0, self._finish, None)
+
+    def _finish(self, error):
         """Runs back on the main thread: stop progress, re-enable button, report the outcome."""
         self._progress.stop()
         self._run_btn.config(state="normal")
+        self._current_section_label = ""
         if error:
-            self._set_status("Error")
+            self._set_status("Error — see message")
             messagebox.showerror("Error", error)
         else:
             self._set_status("All sections done.")
