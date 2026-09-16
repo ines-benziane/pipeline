@@ -25,6 +25,7 @@ class ReportSession:
         self.on_done = on_done
         self.on_report_done = on_report_done
         self._current_section_label = ""
+        self._successful_sections = []
         progress.set_listener(self._on_announce)
 
     def _on_announce(self, text, level):
@@ -52,6 +53,7 @@ class ReportSession:
         threading.Thread(target=self._run_all_sync, args=(sections,), daemon=True).start()
 
     def _run_all_sync(self, sections):
+        self._successful_sections = []
         total = len(sections)
         for i, section in enumerate(sections, start=1):
             self._current_section_label = f"Section {i}/{total} ({section.display_name()})"
@@ -70,12 +72,13 @@ class ReportSession:
                 self.on_done(f"{type(exc).__name__}: {exc}")
                 raise
 
-            # TODO: "suspended" (QC checkpoint) gets the "error" color for now — it isn't a
+            # TO DO: "suspended" (QC checkpoint) gets the "error" color for now — it isn't a
             # failure, but there's no GUI resume flow yet, so it needs attention just like one.
             if result.status == "suspended":
                 self.on_section_status(section, "error")
             else:
                 self.on_section_status(section, "done")
+                self._successful_sections.append(section)
 
         self._current_section_label = ""
         self.on_done(None)
@@ -85,8 +88,11 @@ class ReportSession:
         threading.Thread(target=self._generate_report_sync, args=(exam_id, report_dir), daemon=True).start()
 
     def _generate_report_sync(self, exam_id, report_dir):
+        config = {"section": [section.config_entry() for section in self._successful_sections]}
         try:
-            pdf_path = MedicalReportGenerator().generate([exam_id], RESULT_DIR, report_dir, lang="en")
+            pdf_path = MedicalReportGenerator().generate(
+                [exam_id], RESULT_DIR, report_dir, lang="en", config=config,
+            )
         except Exception as exc:
             self.on_report_done(f"{type(exc).__name__}: {exc}", None)
             raise

@@ -41,6 +41,7 @@ class Dixon3ptMethod(Method) :
     comparability_criteria = []
     CHECKPOINTS = ("mutools", "segmentation")
     ACTIONS = ("global-swap",)
+    biomarker = "FF"
 
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None, debug=False):
         mag_1 = abs(volumes[0])
@@ -159,7 +160,7 @@ class Dixon3ptMethod(Method) :
             "method": self.name,
             "version": self.version,
             "acquisition": "1.0",
-            "biomarker": "FF",
+            "biomarker": self.biomarker,
             "segmentation": MODEL_BY_SEGMENT[segment],
         }
 
@@ -181,7 +182,7 @@ class Dixon3ptMethod(Method) :
             rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
                         "method": self.name, "version": self.version, "acquisition": "1.0",
-                        "biomarker": "FF", "segmentation": MODEL_BY_SEGMENT[segment]}
+                        "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment]}
             json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
             result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
             return result
@@ -190,7 +191,7 @@ class Dixon3ptMethod(Method) :
             exam_date = echo_times_record["exam_date"]
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
                         "method": self.name, "version": self.version, "acquisition": "1.0",
-                        "biomarker": "FF", "segmentation": MODEL_BY_SEGMENT[segment]}
+                        "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment]}
             ffmap = volume.read(Path(workdir) / "ffmap.mha")
             roi = [volume.read(Path(workdir) / "roi.mha")]
             labels_obj = io.read_labels(Path(workdir) / "labels.txt")

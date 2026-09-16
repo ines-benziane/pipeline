@@ -89,6 +89,23 @@ class SectionForm:
             seg_series=parse_series(self.seg_series_entry.get().strip()),
         )
 
+    def config_entry(self):
+        """Build a medical_report config-section dict from this section's current fields."""
+        method_name, _ = parse_method(self.method_entry.get().strip())
+        method_cls = methods_registry.get(method_name)
+        acquisition, seg_dict = next(iter(parse_acquisition(self.get_value(self.acquisition_id_entry)).items()))
+        segment, _ = next(iter(seg_dict.items()))
+        return {
+            "biomarker": method_cls.biomarker,
+            "section_name": "1slice",
+            "segment": segment,
+            "method": {method_name: method_cls.version},
+            "version": None,
+            "generate": False,
+            "date": None,
+            "acquisition": acquisition,
+        }
+
     def _build_delete_button(self):
         """Small X button, floating above the section box's top-right corner, outside it."""
         if self.on_delete is None:
