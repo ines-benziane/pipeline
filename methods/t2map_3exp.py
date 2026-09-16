@@ -29,6 +29,7 @@ class T2Map3ExpMethod(Method):
     CHECKPOINTS = ("mutools","segmentation")
     ACTIONS = ()
     biomarker = "T2"
+    report_acquisition = "1.0"
 
     def write_results(self, results, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
         if decision is not None:
@@ -128,7 +129,7 @@ class T2Map3ExpMethod(Method):
             "segment": segment,
             "method": self.name,
             "version": self.version,
-            "acquisition": "1.0",
+            "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
             "segmentation": MODEL_BY_SEGMENT[segment],
         }

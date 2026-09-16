@@ -42,6 +42,7 @@ class Dixon3ptMethod(Method) :
     CHECKPOINTS = ("mutools", "segmentation")
     ACTIONS = ("global-swap",)
     biomarker = "FF"
+    report_acquisition = "1.0"
 
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None, debug=False):
         mag_1 = abs(volumes[0])
@@ -159,7 +160,7 @@ class Dixon3ptMethod(Method) :
             "segment": segment,
             "method": self.name,
             "version": self.version,
-            "acquisition": "1.0",
+            "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
             "segmentation": MODEL_BY_SEGMENT[segment],
         }
@@ -181,7 +182,7 @@ class Dixon3ptMethod(Method) :
             volumes = [volume.read(Path(workdir) / f"echo_{i}.mha", as_complex=True) for i in range(3)]
             rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
-                        "method": self.name, "version": self.version, "acquisition": "1.0",
+                        "method": self.name, "version": self.version, "acquisition": self.report_acquisition,
                         "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment]}
             json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
             result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
@@ -190,7 +191,7 @@ class Dixon3ptMethod(Method) :
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())
             exam_date = echo_times_record["exam_date"]
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
-                        "method": self.name, "version": self.version, "acquisition": "1.0",
+                        "method": self.name, "version": self.version, "acquisition": self.report_acquisition,
                         "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment]}
             ffmap = volume.read(Path(workdir) / "ffmap.mha")
             roi = [volume.read(Path(workdir) / "roi.mha")]

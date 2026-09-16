@@ -93,7 +93,7 @@ class SectionForm:
         """Build a medical_report config-section dict from this section's current fields."""
         method_name, _ = parse_method(self.method_entry.get().strip())
         method_cls = methods_registry.get(method_name)
-        acquisition, seg_dict = next(iter(parse_acquisition(self.get_value(self.acquisition_id_entry)).items()))
+        _, seg_dict = next(iter(parse_acquisition(self.get_value(self.acquisition_id_entry)).items()))
         segment, _ = next(iter(seg_dict.items()))
         return {
             "biomarker": method_cls.biomarker,
@@ -103,7 +103,7 @@ class SectionForm:
             "version": None,
             "generate": False,
             "date": None,
-            "acquisition": acquisition,
+            "acquisition": method_cls.report_acquisition,
         }
 
     def _build_delete_button(self):
