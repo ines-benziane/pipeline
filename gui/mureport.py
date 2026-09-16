@@ -20,10 +20,14 @@ from methods.dixon3pt import Dixon3ptMethod
 from methods.t2map_3exp import T2Map3ExpMethod
 
 from sections import SectionForm
+from widgets import make_shadow_button
 
 
 methods_registry.register(Dixon3ptMethod)
 methods_registry.register(T2Map3ExpMethod)
+
+PRIMARY = "#2c3e50"
+BG = "#f5f6f8"
 
 class MainApp():
     """Gathered all section forms and call run_pipeline for each of them"""
@@ -31,8 +35,14 @@ class MainApp():
     def __init__(self):
         #Create main window
         self.root = tk.Tk()
+        style = ttk.Style()
+        style.theme_use("clam")
+        self.root.configure(bg=BG)
+        style.configure("TLabelframe", background=BG, bordercolor=PRIMARY)
+        style.configure("TLabelframe.Label", foreground=PRIMARY, font=("Helvetica", 12, "bold"))
+        style.configure("Accent.Horizontal.TProgressbar", background=PRIMARY, troughcolor=BG)
         self.root.title("MuReport")
-        self.root.geometry("720x560")
+        self.root.geometry("1500x1000")
         self.root.resizable(True, True)
         self.sections = []
         progress.set_listener(lambda text, level: self._set_status(text))
@@ -41,7 +51,15 @@ class MainApp():
         ttk.Style().configure(".", font=("Helvetica", 14))
 
         self._build_header()
-        self.sections.append(SectionForm(parent=self.root))
+        self.sections_frame = tk.Frame(self.root, bg=BG)
+        self.sections_frame.pack(fill=tk.X)
+        self._add_section()
+        self._add_section_btn = tk.Button(
+            self.root, text="+ Ajouter une section",
+            command=self._add_section,
+            bg="#e4e6e9", fg=PRIMARY, relief="flat",
+        )
+        self._add_section_btn.pack(pady=(0,6))
         self._build_footer()
 
 
@@ -58,23 +76,36 @@ class MainApp():
             font=("Helvetica", 13, "bold"),
         ).pack()
 
+    def _add_section(self):
+        """Create a new SectionForm inside sections_frame and track it"""
+        section = SectionForm(parent=self.sections_frame, on_delete=self._remove_section)
+        self.sections.append(section)
+
+    def _remove_section(self, section):
+        """Destroy a section's widgets and stop tracking it. Always keep at least one."""
+        if len(self.sections) <= 1:
+            self._set_status("Il faut garder au moins une section.")
+            return
+        section.wrapper.destroy()
+        self.sections.remove(section)
+
     def _build_footer(self):
-        self._run_btn = tk.Button(
-            self.root,
-            text="Run",
-            command=self._on_manage,
-            width=22,
-        )
-        self._run_btn.pack(side=tk.LEFT, padx=4)
-
         prog_frame = tk.Frame(self.root)
-        prog_frame.pack(fill=tk.X, padx=10, pady=(0,6))
-
-        self._progress = ttk.Progressbar(prog_frame, mode="indeterminate", maximum=100)
-        self._progress.pack(fill=tk.X, side=tk.LEFT, expand=True, padx=(0,6))
+        prog_frame.pack(fill=tk.X, padx=10, pady=(4, 2))
+        self._progress = ttk.Progressbar(
+            prog_frame, mode="indeterminate", maximum=100,
+            style="Accent.Horizontal.TProgressbar",
+        )
+        self._progress.pack(fill=tk.X)
 
         self._status_var = tk.StringVar(value="Ready.")
-        tk.Label(prog_frame, textvariable=self._status_var, anchor="w", width=28).pack(side=tk.RIGHT)
+        tk.Label(self.root, textvariable=self._status_var, anchor="w").pack(fill=tk.X, padx=10, pady=(0, 6))
+
+        run_container, self._run_btn = make_shadow_button(
+            self.root, "Run", self._on_manage,
+            bg=PRIMARY, fg="white", active_bg="#1a252f", width=22,
+        )
+        run_container.pack(pady=(0, 8))
 
     def _set_status(self, text: str):
         """Met à jour le label de statut (thread-safe)."""
@@ -92,7 +123,7 @@ class MainApp():
             "Output directory": section.output_dir_entry,
             "Series": section.series_entry
         }
-        missing = [label for label, entry in required.items() if not entry.get().strip()]
+        missing = [label for label, entry in required.items() if not section.get_value(entry)]
         if missing:
             return "Missing fields : " + ", ".join(missing)
         return None
@@ -107,11 +138,11 @@ class MainApp():
         try:
             kwargs = dict(
                 source_dir=section.source_dir_entry.get().strip(),
-                acquisition_id=parse_acquisition(section.acquisition_id_entry.get().strip()),
+                acquisition_id=parse_acquisition(section.get_value(section.acquisition_id_entry)),
                 method=parse_method(section.method_entry.get().strip()),
                 output_dir=section.output_dir_entry.get().strip(),
                 series=parse_series(section.series_entry.get().strip()),
-                qc=section.qc_mode_entry.get().strip() or "off",
+                qc=section.qc_mode_entry.get().strip() or "global",
                 exam_id=section.exam_id_entry.get().strip() or None,
                 exam_date=section.date_entry.get().strip() or None,
                 debug=section.debug_var.get(),
