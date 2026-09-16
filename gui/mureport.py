@@ -15,6 +15,7 @@ from runner.errors import PipelineError
 from runner.parsing import parse_acquisition, parse_method, parse_series
 from runner.pipeline import run_pipeline
 from runner import methods_registry
+from runner import progress
 from methods.dixon3pt import Dixon3ptMethod
 from methods.t2map_3exp import T2Map3ExpMethod
 
@@ -32,6 +33,7 @@ class MainApp():
         self.root.geometry("720x560")
         self.root.resizable(True, True)
         self.sections = []
+        progress.set_listener(lambda text, level: self._set_status(text))
 
         self._build_ui()
 
@@ -72,10 +74,30 @@ class MainApp():
         """Met à jour le label de statut (thread-safe)."""
         self.root.after(0, lambda: self._status_var.set(text))
 
+
+    def _validate(self, section):
+        """Return an error string if required fields are missing, else None."""
+        #TO DO : when implemented, searching by date and name only makes exam-id not required anymore
+        required = {
+            "Exam ID": section.exam_id_entry,
+            "Source directory": section.source_dir_entry,
+            "Method": section.method_entry,
+            "Acquisition ID": section.acquisition_id_entry,
+            "Output directory": section.output_dir_entry,
+            "Series": section.series_entry
+        }
+        missing = [label for label, entry in required.items() if not entry.get().strip()]
+        if missing:
+            return "Missing fields : " + ", ".join(missing)
+        return None
+
     def _on_manage(self):
         """Read section 0's fields (main thread), then hand off to a worker thread."""
         section = self.sections[0]
-
+        error = self._validate(section)
+        if error:
+            self._set_status(error)
+            return
         try:
             kwargs = dict(
                 source_dir=section.source_dir_entry.get().strip(),
@@ -130,6 +152,9 @@ class MainApp():
             self._set_status(title)
             messagebox.showinfo(title, msg)
 
+######################################
+######################################
+
 class SectionForm:
     def __init__(self, parent):
         self.frame = ttk.LabelFrame(parent, text="Section", padding=8)
@@ -148,7 +173,7 @@ class SectionForm:
         """Create and place widgets in the window."""
 
         self.frame.pack(fill=tk.X, padx=8, pady=4)
-        self.frame.columnconfigure(1, weight=1)
+        self.frame.columnconfigure(1)
 
         row = 0
 
@@ -156,8 +181,11 @@ class SectionForm:
             """Add one Label+Entry row, return the Entry widget."""
             nonlocal row
             tk.Label(self.frame, text=label_text).grid(row=row, column=0, sticky="w")
-            entry = ttk.Combobox(self.frame, values=values)
-            entry.grid(row=row, column=1, sticky="ew")
+            if values:
+                entry = ttk.Combobox(self.frame, values=values, width="30")
+            else:
+                entry = tk.Entry(self.frame, width="40")
+            entry.grid(row=row, column=1, sticky="w")
             if browse:
                 tk.Button(
                     self.frame, text="Browse",
