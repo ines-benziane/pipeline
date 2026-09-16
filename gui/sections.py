@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 
 from runner import methods_registry
-from runner.parsing import parse_acquisition
+from runner.parsing import parse_acquisition, parse_method, parse_series
 from widgets import make_shadow_button
 
 class SectionForm:
@@ -52,6 +52,43 @@ class SectionForm:
     def set_status(self, status):
         """Recolor the section box border to reflect its run status."""
         self.frame.config(style=self.STATUS_STYLES[status])
+
+    def exam_id(self):
+        """This section's exam_id, or empty string if not filled."""
+        return self.exam_id_entry.get().strip()
+
+    def validate(self):
+        """Return an error string if required fields are missing, else None."""
+        required = {
+            "Exam ID": self.exam_id_entry,
+            "Source directory": self.source_dir_entry,
+            "Method": self.method_entry,
+            "Acquisition ID": self.acquisition_id_entry,
+            "Output directory": self.output_dir_entry,
+            "Series": self.series_entry,
+        }
+        missing = [label for label, entry in required.items() if not self.get_value(entry)]
+        if missing:
+            return "Missing fields : " + ", ".join(missing)
+        return None
+
+    def to_kwargs(self):
+        """Read this section's fields into run_pipeline kwargs."""
+        return dict(
+            source_dir=self.source_dir_entry.get().strip(),
+            acquisition_id=parse_acquisition(self.get_value(self.acquisition_id_entry)),
+            method=parse_method(self.method_entry.get().strip()),
+            output_dir=self.output_dir_entry.get().strip(),
+            series=parse_series(self.series_entry.get().strip()),
+            qc=self.qc_mode_entry.get().strip() or "global",
+            exam_id=self.exam_id_entry.get().strip() or None,
+            exam_date=self.date_entry.get().strip() or None,
+            debug=self.debug_var.get(),
+            action=self.action_entry.get().strip() or None,
+            multicenter=self.multicenter_var.get(),
+            seg_series=parse_series(self.seg_series_entry.get().strip()),
+        )
+
     def _build_delete_button(self):
         """Small X button, floating above the section box's top-right corner, outside it."""
         if self.on_delete is None:

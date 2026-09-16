@@ -1,25 +1,17 @@
 """
 gui/mureport.py
-Mureport main window. 
+Mureport main window.
 """
 
-import json
-import shutil
-import threading
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
-from pathlib import Path
+from tkinter import ttk, messagebox, filedialog
 
-from adapters.dummy_exam_catalog import DummyExamCatalog
-from runner.errors import PipelineError
-from runner.parsing import parse_acquisition, parse_method, parse_series
-from runner.pipeline import run_pipeline
 from runner import methods_registry
-from runner import progress
 from methods.dixon3pt import Dixon3ptMethod
 from methods.t2map_3exp import T2Map3ExpMethod
 
 from sections import SectionForm
+from session import ReportSession
 from widgets import make_shadow_button
 
 
@@ -30,7 +22,7 @@ PRIMARY = "#2c3e50"
 BG = "#f5f6f8"
 
 class MainApp():
-    """Gathered all section forms and call run_pipeline for each of them"""
+    """Builds the window, wires user actions to a ReportSession, reflects its callbacks."""
 
     def __init__(self):
         #Create main window
@@ -51,9 +43,13 @@ class MainApp():
         self.root.geometry("1500x1000")
         self.root.resizable(True, True)
         self.sections = []
-        self._current_section_label = ""
-        progress.set_listener(self._on_announce)
 
+        self.session = ReportSession(
+            on_progress=self._set_status,
+            on_section_status=lambda section, status: self.root.after(0, section.set_status, status),
+            on_done=lambda error: self.root.after(0, self._finish, error),
+            on_report_done=lambda error, pdf_path: self.root.after(0, self._finish_report, error, pdf_path),
+        )
 
         self.root.option_add("*Font", ("Helvetica", 14))
         ttk.Style().configure(".", font=("Helvetica", 14))
@@ -67,18 +63,17 @@ class MainApp():
             command=self._add_section,
             bg="#e4e6e9", fg=PRIMARY, relief="flat",
         )
-        self._add_section_btn.pack(pady=(0,6))
+        self._add_section_btn.pack(pady=(0, 6))
         self._build_footer()
-
 
     def _build_header(self):
         """Create and place widgets in the window."""
 
         #Header
-        header = tk.Frame(self.root, bg= "#2c3e50", pady=8)
+        header = tk.Frame(self.root, bg="#2c3e50", pady=8)
         header.pack(fill=tk.X)
         tk.Label(
-            header, 
+            header,
             text="MuReport",
             fg="white", bg="#2c3e50",
             font=("Helvetica", 13, "bold"),
@@ -118,58 +113,37 @@ class MainApp():
         )
         run_container.pack(pady=(0, 8))
 
+        report_frame = tk.Frame(self.root, bg=BG)
+        report_frame.pack(fill=tk.X, padx=10, pady=(0, 8))
+        tk.Label(report_frame, text="Report output directory", bg=BG).pack(side=tk.LEFT)
+        self._report_dir_entry = tk.Entry(report_frame, width=40)
+        self._report_dir_entry.pack(side=tk.LEFT, padx=(6, 4))
+        tk.Button(
+            report_frame, text="Browse", command=self._browse_report_dir,
+            bg="#e4e6e9", fg=PRIMARY, relief="flat",
+        ).pack(side=tk.LEFT)
+
+        report_container, self._report_btn = make_shadow_button(
+            self.root, "Generate report", self._on_generate_report,
+            bg=PRIMARY, fg="white", active_bg="#1a252f", width=22,
+        )
+        report_container.pack(pady=(0, 8))
+        self._report_btn.config(state="disabled")
+
     def _set_status(self, text: str):
         """Update the status label (thread-safe)."""
         self.root.after(0, lambda: self._status_var.set(text))
 
-    def _on_announce(self, text, level):
-        """progress.announce() listener: prefix pipeline step names with the current section."""
-        prefix = f"{self._current_section_label} - " if self._current_section_label else ""
-        self._set_status(prefix + text)
-
-    def _validate(self, section):
-        """Return an error string if required fields are missing, else None."""
-        #TO DO : when implemented, searching by date and name only makes exam-id not required anymore
-        required = {
-            "Exam ID": section.exam_id_entry,
-            "Source directory": section.source_dir_entry,
-            "Method": section.method_entry,
-            "Acquisition ID": section.acquisition_id_entry,
-            "Output directory": section.output_dir_entry,
-            "Series": section.series_entry
-        }
-        missing = [label for label, entry in required.items() if not section.get_value(entry)]
-        if missing:
-            return "Missing fields : " + ", ".join(missing)
-        return None
-
-    def _validate_all(self):
-        """Validate every section before running anything. Return an error string, or None"""
-        for section in self.sections:
-            error = self._validate(section)
-            if error:
-                return f"{section.display_name()}: {error}"
-
-    def _build_kwargs(self, section):
-        """Read one section's fields into run_pipeline kwargs."""
-        return dict(
-                        source_dir=section.source_dir_entry.get().strip(),
-            acquisition_id=parse_acquisition(section.get_value(section.acquisition_id_entry)),
-            method=parse_method(section.method_entry.get().strip()),
-            output_dir=section.output_dir_entry.get().strip(),
-            series=parse_series(section.series_entry.get().strip()),
-            qc=section.qc_mode_entry.get().strip() or "global",
-            exam_id=section.exam_id_entry.get().strip() or None,
-            exam_date=section.date_entry.get().strip() or None,
-            debug=section.debug_var.get(),
-            action=section.action_entry.get().strip() or None,
-            multicenter=section.multicenter_var.get(),
-            seg_series=parse_series(section.seg_series_entry.get().strip()),
-        )
+    def _browse_report_dir(self):
+        """Open a folder picker and fill the report output directory field."""
+        path = filedialog.askdirectory()
+        if path:
+            self._report_dir_entry.delete(0, tk.END)
+            self._report_dir_entry.insert(0, path)
 
     def _on_manage(self):
-        """Validate every section (main thread), then run them all sequentially in a worker thread."""
-        error = self._validate_all()
+        """Validate every section (main thread), then run them all via the session."""
+        error = self.session.validate_all(self.sections)
         if error:
             self._set_status(error)
             return
@@ -177,46 +151,49 @@ class MainApp():
         self._run_btn.config(state="disabled")
         self._add_section_btn.config(state="disabled")
         self._progress.start()
-        threading.Thread(target=self._run_all, daemon=True).start()
-
-    def _run_all(self):
-        """Runs off the main thread: executes every section's pipeline, in order."""
-        total = len(self.sections)
-        for i, section in enumerate(self.sections, start=1):
-            self._current_section_label = f"Section {i}/{total} ({section.display_name()})"
-            self.root.after(0, section.set_status, "running")
-            try:
-                kwargs = self._build_kwargs(section)
-                result = run_pipeline(catalog=DummyExamCatalog(), **kwargs)
-            except PipelineError as exc:
-                self.root.after(0, section.set_status, "error")
-                self.root.after(0, self._finish, str(exc))
-                return
-            except Exception as exc:
-                self.root.after(0, section.set_status, "error")
-                self.root.after(0, self._finish, f"{type(exc).__name__}: {exc}")
-                raise
-
-            # TODO: "suspended" (QC checkpoint) gets the "error" color for now — it isn't a
-            # failure, but there's no GUI resume flow yet, so it needs attention just like one.
-            if result.status == "suspended":
-                self.root.after(0, section.set_status, "error")
-            else:
-                self.root.after(0, section.set_status, "done")
-
-        self.root.after(0, self._finish, None)
+        self.session.run_all(self.sections)
 
     def _finish(self, error):
-        """Runs back on the main thread: stop progress, re-enable button, report the outcome."""
+        """Runs back on the main thread: stop progress, re-enable buttons, report the outcome."""
         self._progress.stop()
         self._run_btn.config(state="normal")
         self._add_section_btn.config(state="normal")
-        self._current_section_label = ""
         if error:
             self._set_status("Error — see message")
             messagebox.showerror("Error", error)
         else:
             self._set_status("All sections done.")
+            self._report_btn.config(state="normal")
+
+    def _on_generate_report(self):
+        """Validate exam_id + report dir (main thread), then generate the report via the session."""
+        exam_id = self.session.shared_exam_id(self.sections)
+        if not exam_id:
+            self._set_status("All sections must share the same Exam ID to generate a report.")
+            return
+        report_dir = self._report_dir_entry.get().strip()
+        if not report_dir:
+            self._set_status("Missing field: Report output directory")
+            return
+
+        self._report_btn.config(state="disabled")
+        self._run_btn.config(state="disabled")
+        self._add_section_btn.config(state="disabled")
+        self._set_status("Generating report...")
+        self._progress.start()
+        self.session.generate_report(exam_id, report_dir)
+
+    def _finish_report(self, error, pdf_path):
+        """Runs back on the main thread: stop progress, re-enable buttons, report the outcome."""
+        self._progress.stop()
+        self._run_btn.config(state="normal")
+        self._add_section_btn.config(state="normal")
+        self._report_btn.config(state="normal")
+        if error:
+            self._set_status("Error — see message")
+            messagebox.showerror("Error", error)
+        else:
+            self._set_status(f"Report generated: {pdf_path}")
 
 
 if __name__ == "__main__":
