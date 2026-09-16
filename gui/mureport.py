@@ -51,23 +51,33 @@ class MainApp():
             font=("Helvetica", 13, "bold"),
         ).pack()
 
-        tk.Button(
-            self.root, 
+        self._run_btn = tk.Button(
+            self.root,
             text="Run",
             command=self._on_manage,
             width=22,
-        ).pack(side=tk.LEFT, padx=4)
+        )
+        self._run_btn.pack(side=tk.LEFT, padx=4)
+
+        prog_frame = tk.Frame(self.root)
+        prog_frame.pack(fill=tk.X, padx=10, pady=(0,6))
+
+        self._progress = ttk.Progressbar(prog_frame, mode="indeterminate", maximum=100)
+        self._progress.pack(fill=tk.X, side=tk.LEFT, expand=True, padx=(0,6))
+
+        self._status_var = tk.StringVar(value="Ready.")
+        tk.Label(prog_frame, textvariable=self._status_var, anchor="w", width=28).pack(side=tk.RIGHT)
+
+    def _set_status(self, text: str):
+        """Met à jour le label de statut (thread-safe)."""
+        self.root.after(0, lambda: self._status_var.set(text))
 
     def _on_manage(self):
-        """Read section 0's fields, call run_pipeline once, show the result."""
+        """Read section 0's fields (main thread), then hand off to a worker thread."""
         section = self.sections[0]
 
-        exam_date = section.date_entry.get().strip() or None
-        action = section.action_entry.get().strip() or None
-
         try:
-            result = run_pipeline(
-                catalog=DummyExamCatalog(),
+            kwargs = dict(
                 source_dir=section.source_dir_entry.get().strip(),
                 acquisition_id=parse_acquisition(section.acquisition_id_entry.get().strip()),
                 method=parse_method(section.method_entry.get().strip()),
@@ -75,26 +85,50 @@ class MainApp():
                 series=parse_series(section.series_entry.get().strip()),
                 qc=section.qc_mode_entry.get().strip() or "off",
                 exam_id=section.exam_id_entry.get().strip() or None,
-                exam_date=exam_date,
+                exam_date=section.date_entry.get().strip() or None,
                 debug=section.debug_var.get(),
-                action=action,
+                action=section.action_entry.get().strip() or None,
                 multicenter=section.multicenter_var.get(),
                 seg_series=parse_series(section.seg_series_entry.get().strip()),
             )
+        except Exception as exc:
+            messagebox.showerror("Invalid input", f"{type(exc).__name__}: {exc}")
+            return
+
+        self._run_btn.config(state="disabled")
+        self._set_status("Running...")
+        self._progress.start()
+        threading.Thread(target=self._run_job, kwargs=kwargs, daemon=True).start()
+
+    def _run_job(self, **kwargs):
+        """Runs off the main thread: calls run_pipeline, then reports back via .after()."""
+        try:
+            result = run_pipeline(catalog=DummyExamCatalog(), **kwargs)
         except PipelineError as exc:
-            messagebox.showerror("Error", str(exc))
+            self.root.after(0, self._finish, None, str(exc))
             return
         except Exception as exc:
-            messagebox.showerror("Unexpected error", f"{type(exc).__name__}: {exc}")
+            self.root.after(0, self._finish, None, f"{type(exc).__name__}: {exc}")
             raise
 
         if result.status == "suspended":
-            messagebox.showinfo(
-                "Suspended for QC",
-                f"Job {result.job_id} suspended (checkpoint: {result.checkpoint}).",
-            )
+            info = ("Suspended for QC", f"Job {result.job_id} suspended (checkpoint: {result.checkpoint}).")
+            self.root.after(0, self._finish, info, None)
         else:
-            messagebox.showinfo("Done", f"Job {result.job_id} done — results written.")
+            info = ("Done", f"Job {result.job_id} done — results written.")
+            self.root.after(0, self._finish, info, None)
+
+    def _finish(self, info, error):
+        """Runs back on the main thread: stop progress, re-enable button, show result."""
+        self._progress.stop()
+        self._run_btn.config(state="normal")
+        if error:
+            self._set_status("Error")
+            messagebox.showerror("Error", error)
+        else:
+            title, msg = info
+            self._set_status(title)
+            messagebox.showinfo(title, msg)
 
 class SectionForm:
     def __init__(self, parent):
@@ -102,6 +136,13 @@ class SectionForm:
 
         self._build_ui()
         self._load_defaults()
+
+    def _browse_dir(self, entry):
+        """Open a folder picker and fill the given entry with the chosen path."""
+        path = filedialog.askdirectory()
+        if path:
+            entry.delete(0, tk.END)
+            entry.insert(0, path)
 
     def _build_ui(self):
         """Create and place widgets in the window."""
@@ -111,12 +152,17 @@ class SectionForm:
 
         row = 0
 
-        def add_entry(label_text):
+        def add_entry(label_text, values=None, browse=False):
             """Add one Label+Entry row, return the Entry widget."""
             nonlocal row
             tk.Label(self.frame, text=label_text).grid(row=row, column=0, sticky="w")
-            entry = tk.Entry(self.frame)
+            entry = ttk.Combobox(self.frame, values=values)
             entry.grid(row=row, column=1, sticky="ew")
+            if browse:
+                tk.Button(
+                    self.frame, text="Browse",
+                    command=lambda e=entry: self._browse_dir(e),
+                ).grid(row=row, column=2, padx=(4, 0))
             row += 1
             return entry
 
@@ -131,15 +177,15 @@ class SectionForm:
             return var
 
         self.exam_id_entry = add_entry("Exam ID")
-        self.source_dir_entry = add_entry("Source directory")
-        self.method_entry = add_entry("Method")
+        self.source_dir_entry = add_entry("Source directory", browse=True)
+        self.method_entry = add_entry("Method", methods_registry.list_methods().keys())
         self.acquisition_id_entry = add_entry("Acquisition ID (segment:side:acquisition)")
-        self.output_dir_entry = add_entry("Output directory")
+        self.output_dir_entry = add_entry("Output directory", browse=True)
         self.series_entry = add_entry("Series")
         self.date_entry = add_entry("Date")
-        self.qc_mode_entry = add_entry("Quality check mode")
+        self.qc_mode_entry = add_entry("Quality check mode", ["off","checkpoint","global"])
         self.seg_series_entry = add_entry("Segmentation series")
-        self.action_entry = add_entry("Action")
+        self.action_entry = add_entry("Action", ["global-swap"])
 
         self.debug_var = add_checkbox("Debug")
         self.open_qc_var = add_checkbox("Open QC folder")
