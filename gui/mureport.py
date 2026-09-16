@@ -178,7 +178,7 @@ class SectionForm:
 
         self.exam_id_entry = add_entry("Exam ID")
         self.source_dir_entry = add_entry("Source directory", browse=True)
-        self.method_entry = add_entry("Method", methods_registry.list_methods().keys())
+        self.method_entry = add_entry("Method", list(methods_registry.list_methods().keys()))
         self.acquisition_id_entry = add_entry("Acquisition ID (segment:side:acquisition)")
         self.output_dir_entry = add_entry("Output directory", browse=True)
         self.series_entry = add_entry("Series")
