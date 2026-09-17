@@ -19,7 +19,7 @@ def quality_check_seg(volume, roi, labels, step=1):
     roi = asvolume(roi.array, spacing=tuple(roi.spacing), origin=tuple(roi.origin),
                    transform=tuple(map(tuple, np.reshape(roi.transform, (3,3)).T)))
     roi = interpolate_roi(volume, roi)
-    images = [draw_image(volume[:, :, k], roi = np.asarray(roi[:, :, k]), labels=labels, roialpha=0.5, show_labels=False, vmin=vmin, vmax=vmax).rotate(90, expand=True) for k in  range (0,volume.shape[2], step)]
+    images = [draw_image(volume[:, :, k], roi = np.asarray(roi[:, :, k]), labels=labels, roialpha=0.5, show_labels=False, vmin=vmin, vmax=vmax).rotate(45, expand=True) for k in  range (0,volume.shape[2], step)]
     return images
 
 def save_gif(frames, path, duration=100):
