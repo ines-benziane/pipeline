@@ -1,11 +1,6 @@
 """
 gui/session.py
 Orchestrates running sections' pipelines and generating the report.
-
-No tkinter here on purpose: this can be exercised without any display. All callbacks
-(on_progress, on_section_status, on_done, on_report_done) are called from a background
-thread — the caller is responsible for marshalling them back onto its own main thread
-(e.g. via root.after()).
 """
 
 import threading
