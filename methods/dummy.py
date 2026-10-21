@@ -12,7 +12,8 @@ class DummyMethod(Method):
     comparability_criteria = []
 
     def run(self, source_dir, exam_id, workdir, segment, series, params, date,
-            qc="off", qc_dir=None, decision=None, debug=False, action=None, multicenter=False):
+            qc="off", qc_dir=None, decision=None, debug=False, action=None, multicenter=False,
+            seg_series=None):
         announce(f"building dummy result for {exam_id} / {segment}...", level=1)
         data = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
@@ -35,5 +36,5 @@ class DummyMethod(Method):
             provenance = {"name": self.name, "version": self.version})
 
     def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None,
-                          decision=None, debug=False, multicenter=False):
+                          decision=None, debug=False, multicenter=False, seg_series=None):
         raise NotImplementedError("DummyMethod has no checkpoints")

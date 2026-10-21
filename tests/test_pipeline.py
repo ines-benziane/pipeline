@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from methods.dummy import DummyMethod
-from runner import methods_registry
+from runner import job_runner, job_store, methods_registry
 from runner.errors import MethodNotFoundError
 from runner.job import Job, JobState
 from runner.method import Method, Result
@@ -15,7 +15,8 @@ class NotAutoValidMethod(Method):
     version = "0"
     comparability_criteria = []
 
-    def run(self, source_dir, workdir, segment):
+    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
+            decision=None, debug=False, action=None, multicenter=False, seg_series=None):
         output = Path(workdir) / "not_auto_valid.json"
         output.write_text("{}", encoding="utf-8")
         return Result(
@@ -23,6 +24,18 @@ class NotAutoValidMethod(Method):
             auto_valid=False,
             provenance={"name": self.name},
         )
+
+    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None,
+                          decision=None, debug=False, multicenter=False, seg_series=None):
+        raise NotImplementedError
+
+
+@pytest.fixture
+def isolated_workdirs(tmp_path, monkeypatch):
+    monkeypatch.setattr(job_runner, "WORKDIR_ROOT", tmp_path / "workdirs")
+    monkeypatch.setattr(job_runner, "RESULT_DIR", tmp_path / "workdirs" / "results")
+    monkeypatch.setattr(job_store, "JOBS_DIR", tmp_path / "workdirs" / "jobs")
+    return tmp_path
 
 
 def test_registry_raises_on_unknown_method():
@@ -46,15 +59,16 @@ def test_method_without_run_is_rejected():
         IncompleteMethod()
 
 
-def test_job_reaches_results_ready():
+def test_job_reaches_results_ready(isolated_workdirs):
     methods_registry.register(DummyMethod)
-    job = Job(job_id="test001", exam_id="exam_test", segment="legs", method_name="dummy")
-    run_job(job)
+    job = Job(job_id="test001", exam_id="exam_test", segment="legs", method_name="dummy",
+              series="13, 14", source_dir="testeuh")
+    run_job(job, output_dir=isolated_workdirs / "out")
     assert job.state is JobState.RESULTS_READY
 
 
-def test_job_reaches_suspended():
+def test_job_reaches_suspended(isolated_workdirs):
     methods_registry.register(NotAutoValidMethod)
-    job = Job(job_id="test002", exam_id="exam_test", segment="legs", method_name="not_auto_valid")
-    run_job(job)
+    job = Job(job_id="test002", exam_id="exam_test", segment="legs", method_name="not_auto_valid", series="13,14", source_dir="test_00")
+    run_job(job, output_dir=isolated_workdirs / "out")
     assert job.state is JobState.SUSPENDED

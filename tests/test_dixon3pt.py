@@ -15,15 +15,18 @@ import pytest
 from methods.dixon3pt import Dixon3ptMethod
 
 FIXTURE = Path(__file__).parent / "fixtures" / "dixon3pt_golden.json"
-source_dir = "dixon_data_test_CL2LD260112"
+SOURCE_DIR = Path(__file__).parent.parent / "golden_tests" / "dixon" / "CL2LD260112"
+LEGS_SERIES = [17, 18]  # "VIBE_3TE JAMBES", TE 2.75/3.95/7.55 ms
 
 
 def _muscles_by_key(muscles):
     return {(m["name"], m["side"]): m["volume"]["stats"] for m in muscles}
 
 
+@pytest.mark.skipif(not SOURCE_DIR.is_dir(), reason=f"golden DICOM data missing: {SOURCE_DIR}")
 def test_dixon3pt_matches_golden_reference(tmp_path):
-    result = Dixon3ptMethod().run(source_dir, tmp_path, "legs")
+    result = Dixon3ptMethod().run(str(SOURCE_DIR), "CL2LD260112", tmp_path, "legs", LEGS_SERIES,
+                                  params={}, date=None, qc="off", qc_dir=None)
     produced = json.loads(Path(result.results).read_text(encoding="utf-8"))
     golden = json.loads(FIXTURE.read_text(encoding="utf-8"))
 

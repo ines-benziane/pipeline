@@ -1,180 +1,186 @@
 import pytest
+import yaml
 from pathlib import Path
 
 from runner.pipeline import run_pipeline
-from runner.exam_catalog import ExamSummary
-from runner.method import Method, Result
-from runner import methods_registry
+from runner.exam_catalog import AmbiguousExamError, ExamSummary, NoExamForPatientError
+from runner.job import JobState
+from runner.method import Method, QCCheckpoint, Result
+from runner import job_store, methods_registry
 
 
 class FakeCatalog:
-    def __init__(self, related=None):
-        self.related = related or []
-
-    def find_exams(self, patient_name):
-        return [
-            ExamSummary(exam_id="EXAM001", patient_name=patient_name, exam_date="20200101", description="fake"),
-            ExamSummary(exam_id="EXAM001", patient_name=patient_name, exam_date="20200101", description="fake"),
-        ]
-
-    def find_related_exams(self, exam_id):
-        return self.related
-
-
-class FakeRetriever:
-    def __init__(self):
+    def __init__(self, exams=()):
+        self.exams = list(exams)
         self.calls = []
 
-    def retrieve_exam(self, exam_id, dest_dir, *, mode):
-        self.calls.append(exam_id)
-
-
-class FakeReportGenerator:
-    def __init__(self):
-        self.report = []
-
-    def generate(self, exam_ids, data_dir, output_dir, *, lang="en", config=None):
-        self.report.append(exam_ids)
-        return Path("fake.pdf")
-
-
-class FakeResultIndex:
-    def __init__(self, already_present=()):
-        self.already_present = set(already_present)
-
-    def has_result(self, exam_id):
-        return exam_id in self.already_present
+    def find_exams(self, patient_name):
+        self.calls.append(patient_name)
+        return self.exams
 
 
 class FakeMethod(Method):
+    """auto_valid=True -> job RESULTS_READY. Remembers the args it was run with."""
     name = "fake"
     version = "0"
     comparability_criteria = []
+    last_call = None
 
-    def run(self, source_dir, workdir, segment):
+    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
+            decision=None, debug=False, action=None, multicenter=False, seg_series=None):
+        FakeMethod.last_call = {"exam_id": exam_id, "segment": segment, "series": series,
+                                "params": params, "date": date, "qc": qc}
         output = Path(workdir) / "fake_result.json"
         output.write_text("{}", encoding="utf-8")
         return Result(results=output, auto_valid=True, provenance={"name": self.name})
 
+    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None,
+                          decision=None, debug=False, multicenter=False, seg_series=None):
+        raise NotImplementedError
+
+
+class CheckpointMethod(FakeMethod):
+    """Pauses for QC at its first stage."""
+    name = "fake_checkpoint"
+    CHECKPOINTS = ("stage1",)
+
+    def run(self, *args, **kwargs):
+        raise QCCheckpoint(self.CHECKPOINTS[0])
+
+
+class CrashingMethod(FakeMethod):
+    """Fails like a method fed with unusable data."""
+    name = "fake_crash"
+
+    def run(self, *args, **kwargs):
+        raise RuntimeError("unusable data")
+
 
 @pytest.fixture(autouse=True)
-def _register_fake_method():
-    methods_registry.register(FakeMethod)
+def _register_fake_methods():
+    for m in (FakeMethod, CheckpointMethod, CrashingMethod):
+        methods_registry.register(m)
 
 
 @pytest.fixture(autouse=True)
 def _isolate_disk(tmp_path, monkeypatch):
-    """Empêche run_job/job_store d'écrire dans les vrais data/results, data/jobs, workdirs."""
+    """Empêche run_job/job_store d'écrire dans les vrais workdirs."""
     results_dir = tmp_path / "results"
     monkeypatch.setattr("runner.job_runner.RESULT_DIR", results_dir)
     monkeypatch.setattr("runner.pipeline.RESULT_DIR", results_dir)
     monkeypatch.setattr("runner.job_runner.WORKDIR_ROOT", tmp_path / "workdirs")
     monkeypatch.setattr("runner.job_store.JOBS_DIR", tmp_path / "jobs")
+    return results_dir
 
 
-def test_ambiguous_patient_raises():
-    """0 ou plusieurs matches patient+date -> erreur explicite, jamais un choix silencieux."""
-    with pytest.raises(ValueError):
-        run_pipeline(
-            result_index=None,
-            retriever=None,
-            report_generator=None,
-            catalog=FakeCatalog(),
-            with_antecedent=False,
-            dest_dir=None,
-            mode=None,
-            method=None,
-            output_dir=None,
-            patient_name="John Doe",
-            exam_date="20200101",
-        )
-
-
-def test_happy_path_without_antecedent(tmp_path):
-    """Sans with_antecedent, un seul retrieve et un rapport sur un seul exam_id."""
-    retriever = FakeRetriever()
-    report_generator = FakeReportGenerator()
-
-    result = run_pipeline(
-        result_index=FakeResultIndex(),
-        retriever=retriever,
-        report_generator=report_generator,
+def _run(tmp_path, *, method="fake", params=None, **overrides):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir(exist_ok=True)
+    kwargs = dict(
         catalog=FakeCatalog(),
-        with_antecedent=False,
-        dest_dir=tmp_path / "dicom_in",
-        mode="anonymize",
-        method="fake",
+        source_dir=str(source_dir),
+        acquisition_id={"1.0": {"legs": None}},
+        method=(method, params or {}),
         output_dir=tmp_path / "out",
+        series=[17, 18],
+        qc="off",
         exam_id="EXAM001",
-        segment=["legs"],
     )
-
-    assert retriever.calls == ["EXAM001"]
-    assert report_generator.report == [["EXAM001"]]
-    assert result["exam_ids_for_report"] == ["EXAM001"]
+    kwargs.update(overrides)
+    return run_pipeline(**kwargs)
 
 
-def test_with_antecedent_not_yet_processed(tmp_path):
-    """Antécédent absent du result_index -> il est retrieve+run aussi, puis inclus au rapport."""
-    retriever = FakeRetriever()
-    report_generator = FakeReportGenerator()
-    antecedent = ExamSummary(exam_id="ANTEC001", patient_name="John Doe", exam_date="20200101", description="fake")
+def test_happy_path_with_exam_id(tmp_path, _isolate_disk):
+    """exam_id fourni -> catalogue non consulté, job terminé, résultat copié dans RESULT_DIR."""
+    catalog = FakeCatalog()
+    outcome = _run(tmp_path, catalog=catalog)
 
-    run_pipeline(
-        result_index=FakeResultIndex(already_present=()),
-        retriever=retriever,
-        report_generator=report_generator,
-        catalog=FakeCatalog(related=[antecedent]),
-        with_antecedent=True,
-        dest_dir=tmp_path / "dicom_in",
-        mode="anonymize",
-        method="fake",
-        output_dir=tmp_path / "out",
-        exam_id="EXAM001",
-        segment=["legs"],
-    )
-
-    assert retriever.calls == ["EXAM001", "ANTEC001"]
-    assert report_generator.report == [["EXAM001", "ANTEC001"]]
+    assert outcome.status == "done"
+    assert outcome.exam_id == "EXAM001"
+    assert catalog.calls == []
+    assert (_isolate_disk / "fake_result.json").exists()
+    assert job_store.load(outcome.job_id).state is JobState.RESULTS_READY
 
 
-def test_with_antecedent_already_processed(tmp_path):
-    """Antécédent déjà présent dans le result_index -> pas retraité, seul l'exam du jour est retrieve."""
-    retriever = FakeRetriever()
-    report_generator = FakeReportGenerator()
-    antecedent = ExamSummary(exam_id="ANTEC001", patient_name="John Doe", exam_date="20200101", description="fake")
+def test_job_receives_parsed_inputs(tmp_path):
+    """Segment, séries, paramètres et date arrivent tels quels à la méthode."""
+    _run(tmp_path, params={"k": "v"}, exam_date="20260112",
+         acquisition_id={"1.0": {"thighs": "L"}})
 
-    run_pipeline(
-        result_index=FakeResultIndex(already_present=("ANTEC001",)),
-        retriever=retriever,
-        report_generator=report_generator,
-        catalog=FakeCatalog(related=[antecedent]),
-        with_antecedent=True,
-        dest_dir=tmp_path / "dicom_in",
-        mode="anonymize",
-        method="fake",
-        output_dir=tmp_path / "out",
-        exam_id="EXAM001",
-        segment=["legs"],
-    )
-
-    assert retriever.calls == ["EXAM001"]
-    assert report_generator.report == [["EXAM001", "ANTEC001"]]
+    assert FakeMethod.last_call == {"exam_id": "EXAM001", "segment": "thighs", "series": [17, 18],
+                                    "params": {"k": "v"}, "date": "20260112", "qc": "off"}
 
 
-def test_no_related_exam_raises(tmp_path):
-    """with_antecedent=True mais aucun exam lié trouvé -> erreur explicite."""
-    with pytest.raises(ValueError):
-        run_pipeline(
-            result_index=FakeResultIndex(),
-            retriever=FakeRetriever(),
-            report_generator=FakeReportGenerator(),
-            catalog=FakeCatalog(related=[]),
-            with_antecedent=True,
-            dest_dir=tmp_path / "dicom_in",
-            mode="anonymize",
-            method="fake",
-            output_dir=tmp_path / "out",
-            exam_id="EXAM001",
-            segment=["legs"],
-        )
+def test_series_selection_written_to_source_dir(tmp_path):
+    """Les séries choisies sont tracées dans source_dir/series_selection.yml."""
+    _run(tmp_path, series=[17, 18])
+
+    written = yaml.safe_load((tmp_path / "source" / "series_selection.yml").read_text())
+    assert written == [17, 18]
+
+
+def test_no_series_writes_no_selection_file(tmp_path):
+    _run(tmp_path, series=None)
+
+    assert not (tmp_path / "source" / "series_selection.yml").exists()
+
+
+def test_exam_resolved_from_patient_and_date(tmp_path):
+    """Sans exam_id, un seul exam patient+date -> son exam_id est utilisé."""
+    catalog = FakeCatalog([
+        ExamSummary(exam_id="EXAM_A", patient_name="John Doe", exam_date="20200101", description="fake"),
+        ExamSummary(exam_id="EXAM_B", patient_name="John Doe", exam_date="20210101", description="fake"),
+    ])
+    outcome = _run(tmp_path, catalog=catalog, exam_id=None,
+                   patient_name="John Doe", exam_date="20200101")
+
+    assert outcome.exam_id == "EXAM_A"
+
+
+def test_no_exam_for_patient_raises(tmp_path):
+    """Aucun exam patient+date -> erreur explicite, avec un hint."""
+    catalog = FakeCatalog([
+        ExamSummary(exam_id="EXAM_B", patient_name="John Doe", exam_date="20210101", description="fake"),
+    ])
+    with pytest.raises(NoExamForPatientError) as exc:
+        _run(tmp_path, catalog=catalog, exam_id=None, patient_name="John Doe", exam_date="20200101")
+    assert exc.value.hint
+
+
+def test_ambiguous_patient_raises(tmp_path):
+    """Plusieurs exams patient+date -> erreur explicite, jamais un choix silencieux."""
+    catalog = FakeCatalog([
+        ExamSummary(exam_id="EXAM_A", patient_name="John Doe", exam_date="20200101", description="fake"),
+        ExamSummary(exam_id="EXAM_A2", patient_name="John Doe", exam_date="20200101", description="fake"),
+    ])
+    with pytest.raises(AmbiguousExamError) as exc:
+        _run(tmp_path, catalog=catalog, exam_id=None, patient_name="John Doe", exam_date="20200101")
+    assert exc.value.hint
+
+
+def test_qc_checkpoint_suspends(tmp_path, _isolate_disk):
+    """Méthode en pause QC -> outcome suspended, checkpoint et qc_dir renseignés, aucun résultat."""
+    outcome = _run(tmp_path, method="fake_checkpoint", qc="checkpoint")
+
+    assert outcome.status == "suspended"
+    assert outcome.checkpoint == "stage1"
+    assert outcome.qc_dir is not None and Path(outcome.qc_dir).is_dir()
+    assert job_store.load(outcome.job_id).state is JobState.SUSPENDED
+    assert not _isolate_disk.exists() or not any(_isolate_disk.iterdir())
+
+
+def test_qc_dir_is_created(tmp_path):
+    qc_dir = tmp_path / "qc"
+    _run(tmp_path, qc_dir=qc_dir)
+
+    assert qc_dir.is_dir()
+
+
+def test_failing_method_produces_no_result(tmp_path, _isolate_disk):
+    """Méthode en échec -> l'erreur remonte, job FAILED, aucun fichier résultat."""
+    with pytest.raises(RuntimeError):
+        _run(tmp_path, method="fake_crash")
+
+    jobs = [job_store.load(p.stem) for p in (tmp_path / "jobs").glob("*.json")]
+    assert [j.state for j in jobs] == [JobState.FAILED]
+    assert not _isolate_disk.exists() or not any(_isolate_disk.iterdir())

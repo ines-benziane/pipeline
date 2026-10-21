@@ -7,6 +7,7 @@ workdirs/
 .ruff_cache/
 data/
 dixon_data_test*/
+golden_tests/
 *.pptx
 prompt_series_resolution.md
 museg-ai/
