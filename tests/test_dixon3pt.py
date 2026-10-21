@@ -34,7 +34,17 @@ def test_dixon3pt_matches_golden_reference(tmp_path):
     golden_muscles = _muscles_by_key(golden["muscles"])
 
     assert produced_muscles.keys() == golden_muscles.keys()
+    mismatches = []
     for key, golden_stats in golden_muscles.items():
         produced_stats = produced_muscles[key]
-        assert produced_stats["NPIX"] == pytest.approx(golden_stats["NPIX"], rel=1e-6)
-        assert produced_stats["FF"] == pytest.approx(golden_stats["FF"], rel=1e-3)
+        npix_ok = produced_stats["NPIX"] == pytest.approx(golden_stats["NPIX"], rel=1e-6)
+        ff_ok = produced_stats["FF"] == pytest.approx(golden_stats["FF"], rel=1e-3)
+        if not (npix_ok and ff_ok):
+            mismatches.append(
+                f"{key[0]:>8} {key[1]}  "
+                f"NPIX {golden_stats['NPIX']:.0f} -> {produced_stats['NPIX']:.0f} "
+                f"({produced_stats['NPIX'] - golden_stats['NPIX']:+.0f} px)  "
+                f"FF {golden_stats['FF']:.4f} -> {produced_stats['FF']:.4f} "
+                f"({(produced_stats['FF'] - golden_stats['FF']) / golden_stats['FF']:+.3%})"
+            )
+    assert not mismatches, f"{len(mismatches)}/{len(golden_muscles)} muscles differ:\n" + "\n".join(mismatches)
