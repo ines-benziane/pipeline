@@ -101,15 +101,14 @@ def test_evolution_against_antecedent_printed(report):
     assert f"TA: ↑ {pct}%" in _text(report[1])
 
 
-@pytest.mark.xfail(strict=True, reason="FONC-005: the report header shows no exam/patient identifier "
-                                       "(patient_name, birth_date and exam_id are not in the pipeline JSON). "
-                                       "To decide: what identifies the patient on the PDF.")
+@pytest.mark.xfail(strict=True, reason="Re-identification not implemented yet (planned): the header shows no "
+                                       "patient name nor exam identifier. FONC-005 cannot pass until then.")
 def test_exam_identifier_printed(report):
     assert EXAM_ID in _text(report[1])
 
 
-@pytest.mark.xfail(strict=True, reason="AB and BF_SH (thighs) are segmented but absent from the report value "
-                                       "tables. To confirm with a physician.")
+@pytest.mark.xfail(strict=True, reason="AB and BF_SH (thighs) are segmented but absent from the 1slice value tables "
+                                       "(template list of 11 muscles). Report layout change, to arbitrate with a physician.")
 def test_every_segmented_thigh_muscle_has_a_value_in_the_tables(report):
     segmented = {m["name"] for m in _exam("thighs", "dixon3pt")["muscles"]}
     tables = " ".join(_side_tables(report[1], "L"))
