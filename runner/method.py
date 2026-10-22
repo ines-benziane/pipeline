@@ -42,7 +42,8 @@ class Method (ABC):
         ...
 
     @abstractmethod
-    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False):
+    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False,
+                          seg_series=None):
         ...
 
     def _check_checkpoint(self, name):

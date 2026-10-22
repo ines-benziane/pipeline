@@ -8,6 +8,7 @@ workdirs/
 data/
 dixon_data_test*/
 golden_tests/
+resultats_tests/
 *.pptx
 prompt_series_resolution.md
 museg-ai/

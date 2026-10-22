@@ -1,0 +1,59 @@
+"""Real methods (dixon3pt, t2map_3exp): contract with the runner and input guards.
+No DICOM data needed: every case fails before any computation."""
+
+import inspect
+
+import numpy as np
+import pytest
+
+from methods.dixon3pt import Dixon3ptMethod, MODEL_BY_SEGMENT
+from methods.t2map_3exp import T2Map3ExpMethod
+from mutools.io.volume import asvolume
+from runner.errors import DicomSelectionError, UnknownSegmentError
+
+METHODS = [Dixon3ptMethod, T2Map3ExpMethod]
+
+
+@pytest.mark.parametrize("method_class", METHODS)
+def test_run_accepts_the_runner_call(method_class):
+    """job_runner calls run(...) with 14 positional arguments."""
+    inspect.signature(method_class().run).bind(*range(14))
+
+
+@pytest.mark.parametrize("method_class", METHODS)
+def test_handle_checkpoint_accepts_the_runner_call(method_class):
+    """job_runner calls handle_checkpoint(...) with these keywords, seg_series included."""
+    inspect.signature(method_class().handle_checkpoint).bind(
+        name="x", workdir="w", segment="legs", exam_id="E", qc="off", qc_dir=None,
+        decision=None, debug=False, multicenter=False, seg_series=None,
+    )
+
+
+@pytest.mark.parametrize("method_class", METHODS)
+def test_unknown_action_rejected(method_class, tmp_path):
+    with pytest.raises(ValueError):
+        method_class().run(str(tmp_path), "E", tmp_path, "legs", [17, 18], {}, None, "off", None,
+                           action="no-such-action")
+
+
+@pytest.mark.parametrize("method_class", METHODS)
+def test_missing_series_raise_dicom_selection_error(method_class, tmp_path):
+    """FONC-003: a folder without the requested series fails with an explicit error."""
+    with pytest.raises(DicomSelectionError):
+        method_class().run(str(tmp_path), "E", tmp_path / "wd", "legs", [17, 18], {}, None, "off", None)
+
+
+def test_dixon_unknown_checkpoint_rejected(tmp_path):
+    with pytest.raises(ValueError):
+        Dixon3ptMethod().handle_checkpoint(name="no-such-stage", workdir=tmp_path, segment="legs",
+                                           exam_id="E", qc="off")
+
+
+def test_dixon_unknown_segment_rejected(tmp_path):
+    vol = asvolume(np.ones((4, 4, 4)))
+    with pytest.raises(UnknownSegmentError):
+        Dixon3ptMethod().segmentation([vol, vol, vol], "arms", "E", "off", "20260112", tmp_path)
+
+
+def test_every_segment_has_a_model():
+    assert set(MODEL_BY_SEGMENT) == {"legs", "thighs"}

@@ -24,7 +24,9 @@ def save(job):
         "exam_date": job.exam_date,
         "method_params": job.method_params,
         "multicenter" : job.multicenter,
-        "seg_series" : job.seg_series
+        "seg_series" : job.seg_series,
+        "qc": job.qc,
+        "qc_dir": str(job.qc_dir) if job.qc_dir else None,
     }
 
     path = JOBS_DIR / f"{job.job_id}.json"
@@ -50,5 +52,7 @@ def load(job_id):
         exam_date=data.get("exam_date"),
         method_params=data.get("method_params"),
         multicenter=data.get("multicenter"),
-        seg_series=data["seg_series"]
+        seg_series=data["seg_series"],
+        qc=data.get("qc", "off"),
+        qc_dir=Path(data["qc_dir"]) if data.get("qc_dir") else None,
     )

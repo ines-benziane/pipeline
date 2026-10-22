@@ -173,7 +173,7 @@ class Dixon3ptMethod(Method) :
             provenance={"name": self.name, "version": self.version},
         )
 
-    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False):
+    def handle_checkpoint(self,*, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False, seg_series=None):
         self._check_checkpoint(name)
         if name == "mutools":
             echo_times_record = json.loads((Path(workdir) / "echo_times_record.json").read_text())

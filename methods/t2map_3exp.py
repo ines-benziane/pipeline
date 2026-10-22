@@ -141,5 +141,6 @@ class T2Map3ExpMethod(Method):
                     provenance={"name": self.name, "version": self.version},
                 )
 
-    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False):
+    def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None, decision=None, debug=False, multicenter=False,
+                          seg_series=None):
          raise NotImplementedError("resume T2 not implemented yet")

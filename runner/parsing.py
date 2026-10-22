@@ -10,6 +10,8 @@ def parse_acquisition(acquisition_id):
     if not acquisition_id:
         return None
     parts = acquisition_id.split(":")
+    if len(parts) > 3:
+        raise ValueError(f"Invalid acquisition {acquisition_id!r}: expected segment:side:acquisition")
     parts += [""] * (3 - len(parts))
     segment, side, acquisition,= parts[:3]
     side = side or None
