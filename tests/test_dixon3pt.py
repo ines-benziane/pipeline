@@ -37,7 +37,10 @@ def test_dixon3pt_matches_golden_reference(tmp_path):
     mismatches = []
     for key, golden_stats in golden_muscles.items():
         produced_stats = produced_muscles[key]
-        npix_ok = produced_stats["NPIX"] == pytest.approx(golden_stats["NPIX"], rel=1e-6)
+        # MuSeg-AI is not bit-reproducible: ROI borders move by a few pixels between runs
+        # (observed max 5 px / 0.056 % over 3 runs, 2026-10-22). NPIX tolerance: 0.1 % or 10 px,
+        # whichever is larger. FF, the clinical biomarker, stays at 0.1 %.
+        npix_ok = produced_stats["NPIX"] == pytest.approx(golden_stats["NPIX"], rel=1e-3, abs=10)
         ff_ok = produced_stats["FF"] == pytest.approx(golden_stats["FF"], rel=1e-3)
         if not (npix_ok and ff_ok):
             mismatches.append(
