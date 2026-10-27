@@ -25,14 +25,13 @@ class RecordingMethod(Method):
         output.write_text("{}", encoding="utf-8")
         return Result(results=output, auto_valid=True, provenance={"name": self.name})
 
-    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
-            decision=None, debug=False, action=None, multicenter=False, seg_series=None):
-        RecordingMethod.calls.append(("run", {"qc": qc, "decision": decision}))
+    def run(self, ctx):
+        RecordingMethod.calls.append(("run", {"qc": ctx.qc, "decision": ctx.decision}))
         if self.behaviour == "checkpoint":
             raise QCCheckpoint("stage1")
         if self.behaviour == "crash":
             raise RuntimeError("unusable data")
-        return self._result(workdir)
+        return self._result(ctx.workdir)
 
     def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None,
                           decision=None, debug=False, multicenter=False, seg_series=None):

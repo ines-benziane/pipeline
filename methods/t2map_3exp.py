@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -7,7 +8,7 @@ from dicomstack import DicomStack
 from methods.dixon3pt import Dixon3ptMethod, MODEL_BY_SEGMENT
 from methods.get_results.getresults import getresults
 
-from runner.method import Method, Result, QCCheckpoint, QCUserDecisions
+from runner.method import Method, Result, QCCheckpoint, QCUserDecisions, RunContext
 from runner.progress import announce
 from runner.errors import (
     DicomSelectionError,
@@ -54,18 +55,16 @@ class T2Map3ExpMethod(Method):
         return json_path      
         
 
-    def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc,
-            qc_dir, decision: QCUserDecisions | None = None, debug=False, action=None,
-            multicenter=False, seg_series=None) :
-        self._check_action(action)
-        stack = DicomStack(source_dir)
-        if date :
-            stack = stack(SeriesNumber=series, StudyDate=date)
+    def run (self, ctx: RunContext) :
+        self._check_action(ctx.action)
+        stack = DicomStack(ctx.source_dir)
+        if ctx.exam_date :
+            stack = stack(SeriesNumber=ctx.series, StudyDate=ctx.exam_date)
         else :
-            stack = stack(SeriesNumber=series)
+            stack = stack(SeriesNumber=ctx.series)
         if not stack:
             raise DicomSelectionError(
-                f"No DICOM series matching {series} in {source_dir}",
+                f"No DICOM series matching {ctx.series} in {ctx.source_dir}",
                 hint="check --series and --date",
             )
         exam_date = stack.single("StudyDate")
@@ -75,12 +74,12 @@ class T2Map3ExpMethod(Method):
             echo_times = info["echo_times"]
         except Exception as exc:
             raise DicomSelectionError(
-                f"Selected series in {source_dir} are not a readable T2map acquisition"
+                f"Selected series in {ctx.source_dir} are not a readable T2map acquisition"
             ) from exc
         roi=clusterize(volumes)
         announce("T2 mapping...", level=1)
         try:
-            fixed_fat=params.get("fixed_fat", False)
+            fixed_fat=(ctx.params or {}).get("fixed_fat", False)
             config = None
             if not fixed_fat:
                 res = fit_fat(echo_times=echo_times, volumes=volumes, mask=roi==2)
@@ -89,12 +88,12 @@ class T2Map3ExpMethod(Method):
                 config["fit_fat"] = True
             results, pred = fit (echo_times=echo_times, volumes=volumes, mask=roi>0, config=config)
         except Exception as exc:
-            if debug:
+            if ctx.debug:
                 self._dump_crash(
-                    workdir,
+                    ctx.workdir,
                     roi=roi,
                     **{f"echo_{i}": v for i, v in enumerate(volumes)})
-            raise T2MappingError(f"T2 mapping reconstruction failed for {source_dir}") from exc
+            raise T2MappingError(f"T2 mapping reconstruction failed for {ctx.source_dir}") from exc
 
         # results["t2map"]/"t2cint"/"ffmap" come out of fit() as raw ndarrays (utils.fillvolume),
         # with no geometry (no .spacing/.origin/.transform). The segmentation ROI comes from a
@@ -110,8 +109,8 @@ class T2Map3ExpMethod(Method):
             results[key] = asvolume(results[key], spacing=t2_ref.spacing, origin=t2_ref.origin,
                                      transform=t2_ref.transform)
 
-        if debug or qc in ("checkpoint", "global"):
-            if multicenter:
+        if ctx.debug or ctx.qc in ("checkpoint", "global"):
+            if ctx.multicenter:
                 ...
             ...
         # WARNING: checkpoint doesn't work here — a nested QCCheckpoint would suspend this
@@ -119,22 +118,22 @@ class T2Map3ExpMethod(Method):
         # dixon3pt's internal state. "checkpoint" is downgraded to "global" so segmentation
         # QC artifacts are still written, but never suspends. Composing checkpoints across
         # methods is unsolved — revisit when T2 needs a real resume here.
-        rois, labels, exam_date = Dixon3ptMethod().run(source_dir=source_dir, exam_id=exam_id, workdir=workdir, segment=segment, series=seg_series, params=params, date=date,
-            qc="global" if qc == "checkpoint" else qc,
-            qc_dir=qc_dir, debug=debug, seg_series=seg_series, action=None, multicenter=False)
+        dixon_ctx = replace(ctx, series=ctx.seg_series, qc="global" if ctx.qc == "checkpoint" else ctx.qc,
+                            action=None, multicenter=False)
+        rois, labels, exam_date = Dixon3ptMethod().run(dixon_ctx)
 
         metadata = {
-            "exam_id": exam_id,
+            "exam_id": ctx.exam_id,
             "exam_date": exam_date,
-            "segment": segment,
+            "segment": ctx.segment,
             "method": self.name,
             "version": self.version,
             "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
-            "segmentation": MODEL_BY_SEGMENT[segment],
+            "segmentation": MODEL_BY_SEGMENT[ctx.segment],
         }
 
-        json_path = self.write_results(results, rois, labels, metadata, workdir, decision)
+        json_path = self.write_results(results, rois, labels, metadata, ctx.workdir, ctx.decision)
         return Result(
                     results=json_path,
                     auto_valid=True,

@@ -11,7 +11,7 @@ from runner.errors import (
     SegmentationError,
     UnknownSegmentError,
 )
-from runner.method import Method, Result, QCCheckpoint, QCUserDecisions
+from runner.method import Method, Result, QCCheckpoint, QCUserDecisions, RunContext
 from runner.progress import announce
 
 from dicomstack import DicomStack
@@ -91,18 +91,16 @@ class Dixon3ptMethod(Method) :
         json_path = JsonWriter().write(exam, Path(workdir))
         return json_path      
         
-    def run (self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
-             decision: QCUserDecisions | None = None, debug=False, action=None, multicenter=False,
-             seg_series=None):
-        self._check_action(action)
-        stack = DicomStack(source_dir)
-        if date :
-                stack = stack(SeriesNumber=series, StudyDate=date)
+    def run (self, ctx: RunContext):
+        self._check_action(ctx.action)
+        stack = DicomStack(ctx.source_dir)
+        if ctx.exam_date :
+                stack = stack(SeriesNumber=ctx.series, StudyDate=ctx.exam_date)
         else :
-                stack = stack(SeriesNumber=series)
+                stack = stack(SeriesNumber=ctx.series)
         if not stack :
             raise DicomSelectionError(
-                f"No DICOM series matching {series} in {source_dir}",
+                f"No DICOM series matching {ctx.series} in {ctx.source_dir}",
                 hint="check --series and --date",
             )
         exam_date = stack.single("StudyDate")
@@ -112,60 +110,62 @@ class Dixon3ptMethod(Method) :
             echo_times = info["echo_times"]
         except Exception as exc:
             raise DicomSelectionError(
-                f"Selected series in {source_dir} are not a readable 3-point Dixon acquisition"
+                f"Selected series in {ctx.source_dir} are not a readable 3-point Dixon acquisition"
             ) from exc
-        if seg_series:
+        if ctx.seg_series:
             announce("Dixon 3pt segmentation...", level=1)
-            rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
+            rois, labels, exam_date = self.segmentation(volumes, ctx.segment, ctx.exam_id, ctx.qc, exam_date,
+                                                        ctx.workdir, ctx.qc_dir, ctx.debug)
             return (rois, labels, exam_date)
         mask = make_mask(*volumes, axis=2, threshold=10)
         announce("Dixon 3pt reconstruction...", level=1)
         try :
             water_map, fat_map, delta_b0, r2_star = dixon_3pt(echo_times, *volumes, mask = mask, force_reconstruction=False, global_swap=False)
-            if action == "global-swap":
+            if ctx.action == "global-swap":
                 water_map, fat_map = fat_map, water_map
             ffmap = make_ffmap(water_map, fat_map, mask=mask)
         except Exception as exc:
-            if debug:
+            if ctx.debug:
                 self._dump_crash(
-                    workdir,
+                    ctx.workdir,
                     mask=mask,
                     echo_times=echo_times,
                     **{f"echo_{i}": vol for i, vol in enumerate(volumes)},
                 )
-            raise DixonReconstructionError(f"Dixon 3pt reconstruction failed for {source_dir}") from exc
+            raise DixonReconstructionError(f"Dixon 3pt reconstruction failed for {ctx.source_dir}") from exc
 
-        if debug or qc in ("checkpoint", "global"):
+        if ctx.debug or ctx.qc in ("checkpoint", "global"):
             overview = quality_check_volumes(ffmap)
-            overview.save(Path(workdir) / "overview.png")
-        if qc in ("checkpoint", "global"):
-            overview.save(Path(qc_dir) / "overview.png")
-            volume.write(Path(qc_dir) / "ffmap.mha", ffmap)
-        if debug or qc=="checkpoint":
-            volume.write(Path(workdir) / "ffmap.mha", ffmap)
-            volume.write(Path(workdir) / "mask.mha", mask)
-            volume.write(Path(workdir) / "echo_times.mha", echo_times)
+            overview.save(Path(ctx.workdir) / "overview.png")
+        if ctx.qc in ("checkpoint", "global"):
+            overview.save(Path(ctx.qc_dir) / "overview.png")
+            volume.write(Path(ctx.qc_dir) / "ffmap.mha", ffmap)
+        if ctx.debug or ctx.qc=="checkpoint":
+            volume.write(Path(ctx.workdir) / "ffmap.mha", ffmap)
+            volume.write(Path(ctx.workdir) / "mask.mha", mask)
+            volume.write(Path(ctx.workdir) / "echo_times.mha", echo_times)
             echo_times_record = {"echo_times": list(echo_times), "exam_date": exam_date}
-            (Path(workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
+            (Path(ctx.workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
             for i, vol in enumerate(volumes):
-                volume.write(Path(workdir) / f"echo_{i}.mha", vol)
-        if qc == "checkpoint":
+                volume.write(Path(ctx.workdir) / f"echo_{i}.mha", vol)
+        if ctx.qc == "checkpoint":
             raise QCCheckpoint(self.CHECKPOINTS[0])
 
-        rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
+        rois, labels, exam_date = self.segmentation(volumes, ctx.segment, ctx.exam_id, ctx.qc, exam_date,
+                                                    ctx.workdir, ctx.qc_dir, ctx.debug)
 
         metadata = {
-            "exam_id": exam_id,
+            "exam_id": ctx.exam_id,
             "exam_date": exam_date,
-            "segment": segment,
+            "segment": ctx.segment,
             "method": self.name,
             "version": self.version,
             "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
-            "segmentation": MODEL_BY_SEGMENT[segment],
+            "segmentation": MODEL_BY_SEGMENT[ctx.segment],
         }
 
-        json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
+        json_path = self.write_results(ffmap, rois, labels, metadata, ctx.workdir, ctx.decision)
         
         return Result(
             results=json_path,

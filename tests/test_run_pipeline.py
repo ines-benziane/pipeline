@@ -26,11 +26,10 @@ class FakeMethod(Method):
     comparability_criteria = []
     last_call = None
 
-    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir,
-            decision=None, debug=False, action=None, multicenter=False, seg_series=None):
-        FakeMethod.last_call = {"exam_id": exam_id, "segment": segment, "series": series,
-                                "params": params, "date": date, "qc": qc}
-        output = Path(workdir) / "fake_result.json"
+    def run(self, ctx):
+        FakeMethod.last_call = {"exam_id": ctx.exam_id, "segment": ctx.segment, "series": ctx.series,
+                                "params": ctx.params, "date": ctx.exam_date, "qc": ctx.qc}
+        output = Path(ctx.workdir) / "fake_result.json"
         output.write_text("{}", encoding="utf-8")
         return Result(results=output, auto_valid=True, provenance={"name": self.name})
 

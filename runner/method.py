@@ -30,15 +30,35 @@ class QCUserDecisions:
     comment: str | None = None
     action: str | None = None
 
-class Method (ABC): 
+@dataclass(frozen=True)
+class RunContext:
+    """Everything a method needs for one run, built by the runner from the job.
+    Frozen: a method that needs different values (e.g. t2map calling dixon3pt)
+    makes a copy with dataclasses.replace instead of changing the caller's context."""
+    source_dir : str
+    exam_id : str
+    workdir : Path
+    segment : str
+    series : list[int]
+    qc : str = "off"
+    params : dict | None = None
+    exam_date : str | None = None
+    qc_dir : Path | None = None
+    decision : QCUserDecisions | None = None
+    debug : bool = False
+    action : str | None = None
+    multicenter : bool = False
+    seg_series : list[int] | None = None
+
+class Method (ABC):
     name : str
     version : str
     comparability_criteria : list
     CHECKPOINTS: tuple[str, ...] = ()
     ACTIONS: tuple[str, ...] = ()
     @abstractmethod
-    def run(self, source_dir, exam_id, workdir, segment, series, params, date, qc, qc_dir, decision=None, debug=False,action=None,
-            multicenter=False, seg_series=None):
+    def run(self, ctx: RunContext) -> Result:
+        """Run the method on one exam described by `ctx`; return its result file."""
         ...
 
     @abstractmethod
@@ -68,4 +88,4 @@ class Method (ABC):
                 volume.write(crash_dir / f"{label}.mha", arr)
             except Exception:
                 log.warning("crash dump: could not write %s", label, exc_info=True)
-        
+

@@ -11,7 +11,7 @@ from pathlib import Path
 from mutools.io import volume
 from mutools import io
 
-from runner.method import Result, QCCheckpoint
+from runner.method import Result, QCCheckpoint, RunContext
 from runner import job_store, methods_registry
 from runner.job import JobState
 from runner.progress import announce
@@ -58,9 +58,11 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
                                               exam_id=job.exam_id, qc=job.qc, qc_dir=job.qc_dir, decision=decision,
                                               debug=debug, multicenter=job.multicenter, seg_series=job.seg_series)
         else:
-            result = method.run(job.source_dir, job.exam_id, job.workdir, job.segment, job.series,
-                                job.method_params, job.exam_date, job.qc, job.qc_dir, decision, debug, action,
-                                job.multicenter, job.seg_series)
+            ctx = RunContext(source_dir=job.source_dir, exam_id=job.exam_id, workdir=job.workdir,
+                             segment=job.segment, series=job.series, qc=job.qc, params=job.method_params,
+                             exam_date=job.exam_date, qc_dir=job.qc_dir, decision=decision, debug=debug,
+                             action=action, multicenter=job.multicenter, seg_series=job.seg_series)
+            result = method.run(ctx)
 
     except QCCheckpoint as e:
         log.info("job %s suspended for QC (%s)", job.job_id, e)

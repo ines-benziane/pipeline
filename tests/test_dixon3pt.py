@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from methods.dixon3pt import Dixon3ptMethod
+from runner.method import RunContext
 
 FIXTURE = Path(__file__).parent / "fixtures" / "dixon3pt_golden.json"
 SOURCE_DIR = Path(__file__).parent.parent / "golden_tests" / "dixon" / "CL2LD260112"
@@ -25,8 +26,8 @@ def _muscles_by_key(muscles):
 
 @pytest.mark.skipif(not SOURCE_DIR.is_dir(), reason=f"golden DICOM data missing: {SOURCE_DIR}")
 def test_dixon3pt_matches_golden_reference(tmp_path):
-    result = Dixon3ptMethod().run(str(SOURCE_DIR), "CL2LD260112", tmp_path, "legs", LEGS_SERIES,
-                                  params={}, date=None, qc="off", qc_dir=None)
+    result = Dixon3ptMethod().run(RunContext(source_dir=str(SOURCE_DIR), exam_id="CL2LD260112", workdir=tmp_path,
+                                             segment="legs", series=LEGS_SERIES))
     produced = json.loads(Path(result.results).read_text(encoding="utf-8"))
     golden = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
