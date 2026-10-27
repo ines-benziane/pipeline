@@ -25,6 +25,7 @@ from mutools import io
 from musegai.io import Image
 from musegai.api import run_model
 
+from methods.external_segmentation import read_external_segmentation
 from methods.get_results.getresults import getresults
 from methods.quality_check.qc import quality_check_volumes, quality_check_seg, save_gif
 
@@ -43,6 +44,14 @@ class Dixon3ptMethod(Method) :
     ACTIONS = ("global-swap",)
     biomarker = "FF"
     report_acquisition = "1.0"
+
+    def _segment(self, ctx, volumes, exam_date):
+        """External segmentation if given (--external_seg), Museg-AI otherwise"""
+        if ctx.ext_seg:
+            rois, labels = read_external_segmentation(ctx.ext_seg, volumes[0], ctx.segment)
+            return rois, labels, exam_date
+        return self.segmentation(volumes, ctx.segment, ctx.exam_id, ctx.qc, exam_date,
+                                 ctx.workdir, ctx.qc_dir, ctx.debug)
 
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None, debug=False):
         mag_1 = abs(volumes[0])
@@ -114,8 +123,7 @@ class Dixon3ptMethod(Method) :
             ) from exc
         if ctx.seg_series:
             announce("Dixon 3pt segmentation...", level=1)
-            rois, labels, exam_date = self.segmentation(volumes, ctx.segment, ctx.exam_id, ctx.qc, exam_date,
-                                                        ctx.workdir, ctx.qc_dir, ctx.debug)
+            rois, labels, exam_date = self._segment(ctx, volumes, exam_date)
             return (rois, labels, exam_date)
         mask = make_mask(*volumes, axis=2, threshold=10)
         announce("Dixon 3pt reconstruction...", level=1)
@@ -151,8 +159,7 @@ class Dixon3ptMethod(Method) :
         if ctx.qc == "checkpoint":
             raise QCCheckpoint(self.CHECKPOINTS[0])
 
-        rois, labels, exam_date = self.segmentation(volumes, ctx.segment, ctx.exam_id, ctx.qc, exam_date,
-                                                    ctx.workdir, ctx.qc_dir, ctx.debug)
+        rois, labels, exam_date = self._segment(ctx, volumes, exam_date)
 
         metadata = {
             "exam_id": ctx.exam_id,

@@ -41,7 +41,6 @@ class MethodError(PipelineError):
 class DicomSelectionError(MethodError):
     """The selected DICOM series are missing or not usable by the method."""
 
-
 class DixonReconstructionError(MethodError):
     """The Dixon fat/water reconstruction failed on otherwise valid input."""
 
@@ -61,3 +60,5 @@ class UnknownSegmentError(MethodError):
         )
         self.segment = segment
 
+class ExternalSegmentationError(MethodError):
+    """The external segmentation folder is incomplete or does not match the images."""

@@ -61,7 +61,7 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
             ctx = RunContext(source_dir=job.source_dir, exam_id=job.exam_id, workdir=job.workdir,
                              segment=job.segment, series=job.series, qc=job.qc, params=job.method_params,
                              exam_date=job.exam_date, qc_dir=job.qc_dir, decision=decision, debug=debug,
-                             action=action, multicenter=job.multicenter, seg_series=job.seg_series)
+                             action=action, multicenter=job.multicenter, seg_series=job.seg_series, ext_seg=job.ext_seg)
             result = method.run(ctx)
 
     except QCCheckpoint as e:

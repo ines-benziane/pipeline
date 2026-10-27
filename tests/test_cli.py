@@ -58,10 +58,28 @@ def test_process_passes_parsed_options_to_the_pipeline(run, captured):
     assert (captured["action"], captured["multicenter"], captured["debug"]) == ("global-swap", True, True)
 
 
+def test_process_passes_external_segmentation_folder(run, captured, tmp_path):
+    roi_dir = tmp_path / "ROI_DIXON_LEG"
+    roi_dir.mkdir()
+
+    result = run(*PROCESS, "-extseg", str(roi_dir))
+
+    assert result.exit_code == 0, result.output
+    assert captured["ext_seg"] == roi_dir
+
+
+def test_process_refuses_missing_external_segmentation_folder(run, captured, tmp_path):
+    result = run(*PROCESS, "-extseg", str(tmp_path / "nowhere"))
+
+    assert result.exit_code == 2
+    assert "does not exist" in result.output
+    assert captured == {}
+
+
 def test_process_defaults(run, captured):
     run(*PROCESS)
 
-    assert (captured["qc"], captured["seg_series"], captured["action"], captured["debug"]) == ("off", None, None, False)
+    assert (captured["qc"], captured["seg_series"], captured["action"], captured["debug"], captured["ext_seg"]) ==         ("off", None, None, False, None)
 
 
 @pytest.mark.parametrize("missing", ["-e", "-sd", "-m", "-a", "-od", "-s"])

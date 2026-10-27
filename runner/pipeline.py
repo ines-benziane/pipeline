@@ -27,7 +27,8 @@ class PipelineOutcome:
 
 def run_pipeline(catalog, source_dir, acquisition_id, method,
         output_dir, series, qc, exam_id=None, patient_name=None, exam_date=None,
-        debug=False, qc_dir=None, action=None, multicenter=False, seg_series=None
+        debug=False, qc_dir=None, action=None, multicenter=False, seg_series=None,
+        ext_seg=None
         ):
     if not exam_id :
         exams = catalog.find_exams(patient_name)
@@ -52,7 +53,7 @@ def run_pipeline(catalog, source_dir, acquisition_id, method,
     job = Job(source_dir=source_dir, exam_id=exam_id, segment=segment_name,
               method_name=method_name, series=series, method_params=method_params,
               exam_date=exam_date, qc = qc, qc_dir = qc_dir, multicenter = multicenter, 
-              seg_series=seg_series)
+              seg_series=seg_series, ext_seg=ext_seg)
     run_job(job=job, output_dir=output_dir, debug=debug, decision=None, action=action)
     if job.state == JobState.SUSPENDED:
         return PipelineOutcome(

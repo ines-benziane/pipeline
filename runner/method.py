@@ -49,6 +49,7 @@ class RunContext:
     action : str | None = None
     multicenter : bool = False
     seg_series : list[int] | None = None
+    ext_seg : Path | None = None
 
 class Method (ABC):
     name : str

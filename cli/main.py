@@ -3,6 +3,7 @@
 import functools
 import logging
 import sys
+from pathlib import Path
 
 import click
 
@@ -134,8 +135,11 @@ def retrieve(exam_id, dest_dir, mode, source_dir):
 @click.option("--multicenter", "-mc", is_flag=True, help="For multicentric values. Implies special QC to check muscles in ITK-snap, as required in QC.")
 @click.option("--seg-series", "-ss", help="For now, only dixon3pt method can do the segmentation. To launch another method and get the segmentation, indicate here series number of dixon dicom.")
 @click.option("--action", "-act", help="Launch method with this particular action. Actions are specific to the method. Example: --action global-swap")
+@click.option("--external-seg", "-extseg", type=click.Path(exists=True, file_okay=False, path_type=Path),
+              help="Folder of an external segmentation (e.g. Matlab ROI_DIXON_LEG). Replaces the automatic segmentation.")
 @cli_barrier
-def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode, quality_check_dir, open_qc, multicenter, seg_series, action):
+def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lang,  debug, date, quality_check_mode,
+            quality_check_dir, open_qc, multicenter, seg_series, action, external_seg):
     """from retrieval to one section of the report"""
     result = run_pipeline(
         # # result_index=FileResultIndex(),
@@ -155,7 +159,8 @@ def process(exam_id, source_dir, method, acquisition_id, output_dir, series, lan
         qc_dir=quality_check_dir,
         multicenter=multicenter,
         seg_series=parse_series(seg_series),
-        action=action
+        action=action,
+        ext_seg=external_seg
     )
     if result.status == "suspended":
         click.echo(f"Job {result.job_id} suspended for QC review (checkpoint: {result.checkpoint})")

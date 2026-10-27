@@ -27,6 +27,7 @@ def save(job):
         "seg_series" : job.seg_series,
         "qc": job.qc,
         "qc_dir": str(job.qc_dir) if job.qc_dir else None,
+        "ext_seg": str(job.ext_seg) if job.ext_seg else None,
     }
 
     path = JOBS_DIR / f"{job.job_id}.json"
@@ -55,4 +56,5 @@ def load(job_id):
         seg_series=data["seg_series"],
         qc=data.get("qc", "off"),
         qc_dir=Path(data["qc_dir"]) if data.get("qc_dir") else None,
+        ext_seg=Path(data["ext_seg"]) if data.get("ext_seg") else None,
     )

@@ -55,6 +55,7 @@ def test_store_round_trip_keeps_every_field(isolated_store, tmp_path):
         qc_dir=tmp_path / "qc",
         multicenter=True,
         seg_series=[22, 23],
+        ext_seg=tmp_path / "ROI_DIXON_LEG",
     )
     job_store.save(job)
 
