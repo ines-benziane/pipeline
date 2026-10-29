@@ -1,0 +1,55 @@
+# Variant of results_config.yml WITHOUT erosion nor filters: every pixel of the ROI is measured,
+# as in the manual (Matlab) method. For RES-001 / RES-002 only, to compare the calculation itself.
+# Not for clinical reports. Used with: --method dixon3pt:results_config=raw (or t2map_3exp:results_config=raw)
+
+dixon3pt:
+  suffix: _DIX3
+  inputs: [dixon3pt]
+  roi: roi_museg
+  options:
+    coordinates: true
+  variables:
+    - name: NPIX
+      action: NPIX
+    - name: FF
+      action: mean(ffmap)
+    - name: NPIX
+      action: NPIX
+      how: slice
+    - name: FF
+      how: slice
+      action: mean(ffmap)
+    - name: OUTLINE
+      how: slice
+      action: outline()
+
+
+t2map_3exp:
+  suffix: _3EXP
+  inputs: t2map_3exp_dict
+  roi: roi_museg
+  options:
+    reference: t2map
+    coordinates: true
+  variables:
+    - name: NPIX
+      action: NPIX
+    - name: T2
+      action: mean(t2map)
+    - name: T2 # T2 per slice
+      how: slice
+      action: mean(t2map)
+    - name: T2STD
+      action: std(t2map)
+    - name: T2STD
+      how: slice
+      action: std(t2map)
+    - name: T2CINT
+      action: mean(t2cint)
+    - name: FF
+      action: mean(ffmap)
+      private: true
+    - name: OUTLINE
+      how: slice
+      action: outline()
+      private: true

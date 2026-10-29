@@ -23,6 +23,8 @@ from mutools.t2mapping.t2map_3exp_dict import fit_fat, fit
 from results_writer.writer import parse_table
 from results_writer.json_writer import JsonWriter
 
+from methods.external_segmentation import read_external_segmentation
+
 class T2Map3ExpMethod(Method):
     name = "t2map_3exp"
     version = "1.0"
@@ -32,23 +34,37 @@ class T2Map3ExpMethod(Method):
     biomarker = "T2"
     report_acquisition = "1.0"
 
-    def write_results(self, results, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
+    def _segment(self, ctx, t2_ref, exam_date):
+        """External segmentation if given (--external-seg, e.g. ROI_T2_LEG, already on the T2 grid),
+        Dixon segmentation (MuSeg-AI on seg_series) otherwise. Returns (roi volume, labels, exam_date)."""
+        if ctx.ext_seg :
+            rois, labels = read_external_segmentation(ctx.ext_seg, t2_ref, ctx.segment)
+            return rois[0], labels, exam_date
+            
+        else:
+            dixon_ctx = replace(ctx, series=ctx.seg_series, qc="global" if ctx.qc == "checkpoint" else ctx.qc,
+                            action=None, multicenter=False)
+            rois, labels, exam_date = Dixon3ptMethod().run(dixon_ctx)
+            # rois[0] is a musegai Image (dixon geometry, in principle already correct — see
+            # write-up). But getresults/interpolate_roi does an internal asvolume(roi) that drops
+            # geometry from a raw musegai object (same pitfall as the segmentation GIF fix). Without
+            # re-wrapping it explicitly here, it silently gets identity geometry, which — now that
+            # "t2map" carries the real T2 geometry — misaligns the two grids instead of aligning them.
+            # .T: roi.transform is row-major (SITK GetDirection), mutools wants column-sequence.
+            roi = rois[0]
+            roi_vol = asvolume(roi.array, spacing=roi.spacing, origin=roi.origin,
+                            transform=np.reshape(roi.transform, (3, 3)).T)
+            return roi_vol, labels, exam_date
+
+    def write_results(self, results, roi, labels, metadata, workdir, decision: QCUserDecisions | None = None,
+                      results_config=None):
         if decision is not None:
             metadata = {**metadata,
                         "qc_decision": decision.decision_status,
                         "qc_comment": decision.comment}
-        # rois[0] is a musegai Image (dixon geometry, in principle already correct — see
-        # write-up). But getresults/interpolate_roi does an internal asvolume(roi) that drops
-        # geometry from a raw musegai object (same pitfall as the segmentation GIF fix). Without
-        # re-wrapping it explicitly here, it silently gets identity geometry, which — now that
-        # "t2map" carries the real T2 geometry — misaligns the two grids instead of aligning them.
-        # .T: roi.transform is row-major (SITK GetDirection), mutools wants column-sequence.
-        roi = rois[0]
-        roi_vol = asvolume(roi.array, spacing=roi.spacing, origin=roi.origin,
-                           transform=np.reshape(roi.transform, (3, 3)).T)
         table = getresults(
             volumes={"t2map": results["t2map"], "t2cint": results["t2cint"], "ffmap": results["ffmap"]},
-            roi=roi_vol, labels=labels, method_name="t2map_3exp",
+            roi=roi, labels=labels, method_name="t2map_3exp", variant=results_config,
         )
         exam = parse_table(table, metadata)
         json_path = JsonWriter().write(exam, Path(workdir))
@@ -118,9 +134,9 @@ class T2Map3ExpMethod(Method):
         # dixon3pt's internal state. "checkpoint" is downgraded to "global" so segmentation
         # QC artifacts are still written, but never suspends. Composing checkpoints across
         # methods is unsolved — revisit when T2 needs a real resume here.
-        dixon_ctx = replace(ctx, series=ctx.seg_series, qc="global" if ctx.qc == "checkpoint" else ctx.qc,
-                            action=None, multicenter=False)
-        rois, labels, exam_date = Dixon3ptMethod().run(dixon_ctx)
+
+
+        roi, labels, exam_date = self._segment(ctx, t2_ref, exam_date)
 
         metadata = {
             "exam_id": ctx.exam_id,
@@ -130,10 +146,11 @@ class T2Map3ExpMethod(Method):
             "version": self.version,
             "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
-            "segmentation": MODEL_BY_SEGMENT[ctx.segment],
+            "segmentation": "external" if ctx.ext_seg else MODEL_BY_SEGMENT[ctx.segment],
         }
 
-        json_path = self.write_results(results, rois, labels, metadata, ctx.workdir, ctx.decision)
+        json_path = self.write_results(results, roi, labels, metadata, ctx.workdir, ctx.decision,
+                                       results_config=(ctx.params or {}).get("results_config"))
         return Result(
                     results=json_path,
                     auto_valid=True,

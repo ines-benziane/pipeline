@@ -53,6 +53,14 @@ def test_noise_fat_and_bones_are_not_muscles(tmp_path):
     assert labels == {8: "TA_R"}
 
 
+def test_non_muscle_voxels_are_removed_from_the_roi(tmp_path):
+    """NOISE, fat and bones left in the ROI would be measured as unnamed labels (LABEL_1) and crash the writer."""
+    rois, _ = read_external_segmentation(_roi_folder(tmp_path, drawn=(1, 2, 6, 8)), _reference(), "legs")
+
+    assert set(np.unique(np.asarray(rois[0]))) == {0, 8}
+    assert rois[0].spacing == SPACING and rois[0].origin == ORIGIN
+
+
 @pytest.mark.parametrize("missing", ["roi.hdr", "roi.img", "labels_leg.txt"])
 def test_missing_file_is_named(tmp_path, missing):
     folder = _roi_folder(tmp_path)

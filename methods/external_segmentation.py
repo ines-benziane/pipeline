@@ -23,7 +23,7 @@ def read_external_segmentation(folder: Path, reference, segment: str):
     roi = volume.read(folder / "roi.hdr")
     _check_same_grid(roi, reference, folder)
     labels = _muscle_labels(roi, _read_labels(labels_file), folder)
-    return [roi], labels
+    return [_keep_only(roi, labels)], labels
 
 
 def _check_files(folder: Path, segment: str) -> Path:
@@ -59,6 +59,14 @@ def _check_same_grid(roi, reference, folder: Path):
             f"segmentation grid {roi.shape} does not match the images {reference.shape} ({folder})",
             hint="check that the folder belongs to this exam, segment and sequence (ROI_DIXON_* for Dixon)",
         )
+
+
+def _keep_only(roi, labels: dict):
+    """Set to 0 every voxel that is not one of the kept muscles (NOISE, fat, bones...).
+    Otherwise the measure still sees them and reports them as unnamed labels (LABEL_1 for NOISE)."""
+    arr = np.asarray(roi)
+    kept = np.where(np.isin(arr, list(labels)), arr, 0)
+    return volume.asvolume(kept, spacing=roi.spacing, origin=roi.origin, transform=roi.transform)
 
 
 def _muscle_labels(roi, labels: dict, folder: Path) -> dict:

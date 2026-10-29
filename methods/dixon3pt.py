@@ -5,11 +5,14 @@ import json
 import logging
 import numpy as np
 
+from scipy import ndimage
+
 from runner.errors import (
     DicomSelectionError,
     DixonReconstructionError,
     SegmentationError,
     UnknownSegmentError,
+    SwapLegsError,
 )
 from runner.method import Method, Result, QCCheckpoint, QCUserDecisions, RunContext
 from runner.progress import announce
@@ -41,7 +44,7 @@ class Dixon3ptMethod(Method) :
     version = "1.0"
     comparability_criteria = []
     CHECKPOINTS = ("mutools", "segmentation")
-    ACTIONS = ("global-swap",)
+    ACTIONS = ("global-swap", "swap-left", "swap-right")
     biomarker = "FF"
     report_acquisition = "1.0"
 
@@ -52,6 +55,33 @@ class Dixon3ptMethod(Method) :
             return rois, labels, exam_date
         return self.segmentation(volumes, ctx.segment, ctx.exam_id, ctx.qc, exam_date,
                                  ctx.workdir, ctx.qc_dir, ctx.debug)
+
+
+    def _swap_leg(self, water_map, fat_map, mask, side):
+        """Swap water and fat in one leg only (side "right" or "left")"""
+        parts, n = ndimage.label(mask)
+        sizes = np.bincount(parts.ravel())
+        sizes[0] = 0
+        legs = np.argsort(sizes)[-2:]
+        if n < 2 or sizes[legs[0]] < sizes[legs[1]] /2 :
+            raise SwapLegsError(
+                "swap-left/swap-right: two separate legs not found in the image",
+                hint="this action only applies to legs; use global-swap or correct the swap manually",
+            )
+        # sort the two legs from left to right in the image (mean column index i);
+        # patient right = left of the image (DICOM: x points to the patient's left)
+        by_position = sorted(legs, key=lambda k: np.argwhere(parts == k )[:, 0].mean())
+        right, left = by_position
+        if side == "right":
+            number = right
+        else:
+            number = left
+        leg = parts == number 
+        new_water, new_fat = water_map.copy(), fat_map.copy()
+        new_water[leg] = fat_map[leg]
+        new_fat[leg] = water_map[leg]
+        return new_water, new_fat
+
 
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None, debug=False):
         mag_1 = abs(volumes[0])
@@ -90,12 +120,14 @@ class Dixon3ptMethod(Method) :
             raise QCCheckpoint(self.CHECKPOINTS[1])
         return rois, labels, exam_date
 
-    def write_results(self, ffmap, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None):
+    def write_results(self, ffmap, rois, labels, metadata, workdir, decision: QCUserDecisions | None = None,
+                      results_config=None):
         if decision is not None:
             metadata = {**metadata,
                         "qc_decision": decision.decision_status,
                         "qc_comment": decision.comment}
-        table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt")
+        table = getresults(volumes={"ffmap": ffmap}, roi=rois[0], labels=labels, method_name="dixon3pt",
+                           variant=results_config)
         exam = parse_table(table, metadata)
         json_path = JsonWriter().write(exam, Path(workdir))
         return json_path      
@@ -129,9 +161,6 @@ class Dixon3ptMethod(Method) :
         announce("Dixon 3pt reconstruction...", level=1)
         try :
             water_map, fat_map, delta_b0, r2_star = dixon_3pt(echo_times, *volumes, mask = mask, force_reconstruction=False, global_swap=False)
-            if ctx.action == "global-swap":
-                water_map, fat_map = fat_map, water_map
-            ffmap = make_ffmap(water_map, fat_map, mask=mask)
         except Exception as exc:
             if ctx.debug:
                 self._dump_crash(
@@ -141,6 +170,12 @@ class Dixon3ptMethod(Method) :
                     **{f"echo_{i}": vol for i, vol in enumerate(volumes)},
                 )
             raise DixonReconstructionError(f"Dixon 3pt reconstruction failed for {ctx.source_dir}") from exc
+        if ctx.action == "global-swap":
+            water_map, fat_map = fat_map, water_map
+        elif ctx.action == "swap-right" or ctx.action == "swap-left":
+            side = ctx.action.removeprefix("swap-")
+            water_map, fat_map = self._swap_leg(water_map, fat_map, mask, side)
+        ffmap = make_ffmap(water_map, fat_map, mask=mask)
 
         if ctx.debug or ctx.qc in ("checkpoint", "global"):
             overview = quality_check_volumes(ffmap)
@@ -169,10 +204,11 @@ class Dixon3ptMethod(Method) :
             "version": self.version,
             "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
-            "segmentation": MODEL_BY_SEGMENT[ctx.segment],
+            "segmentation": "external" if ctx.ext_seg else MODEL_BY_SEGMENT[ctx.segment],
         }
 
-        json_path = self.write_results(ffmap, rois, labels, metadata, ctx.workdir, ctx.decision)
+        json_path = self.write_results(ffmap, rois, labels, metadata, ctx.workdir, ctx.decision,
+                                       results_config=(ctx.params or {}).get("results_config"))
         
         return Result(
             results=json_path,

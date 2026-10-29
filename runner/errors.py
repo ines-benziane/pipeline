@@ -62,3 +62,7 @@ class UnknownSegmentError(MethodError):
 
 class ExternalSegmentationError(MethodError):
     """The external segmentation folder is incomplete or does not match the images."""
+
+class SwapLegsError(MethodError):
+    """swap-left / swap-right impossible: the two legs are not separate parts of the image. Use global-swap (also for a single leg)."""
+
