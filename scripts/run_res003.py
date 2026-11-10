@@ -115,7 +115,7 @@ def run(command, log, dry_run) -> bool:
     done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if done.returncode == 0:
         return True
-    error = [line for line in (done.stdout + done.stderr).splitlines() if line.startswith(("Error", "  hint"))]
+    error = [line for line in (done.stdout + done.stderr).splitlines() if line.startswith(("Error", "  hint", "  caused by"))]
     log(f"FAILED {' '.join(command[:8])} ...: {' '.join(error) or done.stderr.strip()[-300:]}")
     return False
 

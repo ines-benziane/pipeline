@@ -99,7 +99,7 @@ def run_mureport(exam: str, segment: str, method: str, series: list[int], roi_di
                "-extseg", str(roi_dir)] + (["-act", action] if action else [])
     done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if done.returncode != 0:
-        error = [line for line in (done.stdout + done.stderr).splitlines() if line.startswith(("Error", "  hint"))]
+        error = [line for line in (done.stdout + done.stderr).splitlines() if line.startswith(("Error", "  hint", "  caused by"))]
         raise RuntimeError(f"muReport failed (code {done.returncode}): {' '.join(error) or done.stderr.strip()[-300:]}")
     # muReport names its JSON <exam>_<date>_<segment>_<method>_<versions>.json in workdirs/results
     return max(MUREPORT_RESULTS.glob(f"{exam}_*_{segment}_{method}_*.json"), key=lambda p: p.stat().st_mtime)
