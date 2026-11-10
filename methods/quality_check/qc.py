@@ -6,7 +6,7 @@ from mutools.utils.imageutils import volume_overview, draw_image
 
 def quality_check_volumes(volume):
     volume = set_orientation(volume, "RAI")
-    image = volume_overview(volume, n=(2, 5))
+    image = volume_overview(volume, n=(10, 1))   # 10 slices in one column, as in the mutools toolbox overview
     return image
 
 def quality_check_seg(volume, roi, labels, step=1):
