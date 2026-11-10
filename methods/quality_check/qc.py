@@ -3,7 +3,6 @@ import numpy as np
 from mutools.io.orientation import set_orientation
 from mutools.io.volume import asvolume
 from mutools.utils.imageutils import volume_overview, draw_image
-from mutools.utils.interpolate import interpolate_roi
 
 def quality_check_volumes(volume):
     volume = set_orientation(volume, "RAI")
@@ -16,10 +15,15 @@ def quality_check_seg(volume, roi, labels, step=1):
     draw_image from mutools = expect 2D slice + labels, returns one image"""
     volume = set_orientation(volume, "RAI")
     vmin, vmax = float(np.min(volume)), float(np.max(volume))
+    # MuSeg-AI ROI: give it its geometry (flat row-major transform), then the same rotation as the image.
+    # It is on the image grid already (computed from it): no interpolation needed.
     roi = asvolume(roi.array, spacing=tuple(roi.spacing), origin=tuple(roi.origin),
                    transform=tuple(map(tuple, np.reshape(roi.transform, (3,3)).T)))
-    roi = interpolate_roi(volume, roi)
-    images = [draw_image(np.rot90(volume[:, :, k]), roi = np.rot90(np.asarray(roi[:, :, k])), labels=labels, roialpha=0.5, show_labels=False, vmin=vmin, vmax=vmax)  for k in  range (0,volume.shape[2], step)]
+    roi = set_orientation(roi, "RAI")
+    # RAI arrays are indexed [i: patient right -> left, j: anterior -> posterior]. Display = transpose:
+    # rows = j (anterior at the top), columns = i (patient right on the left, radiological convention).
+    images = [draw_image(volume[:, :, k].T, roi=np.asarray(roi[:, :, k]).T, labels=labels, roialpha=0.5,
+                         show_labels=False, vmin=vmin, vmax=vmax) for k in range(0, volume.shape[2], step)]
     return images
 
 def save_gif(frames, path, duration=100):

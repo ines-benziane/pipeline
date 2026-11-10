@@ -71,6 +71,24 @@ def test_roi_is_drawn_on_the_frames(ffmap):
     assert not np.array_equal(np.asarray(with_roi), np.asarray(without_roi))
 
 
+def test_gif_frame_in_radiological_view():
+    """RES-003: front of the limb at the top, patient's right on the left of the frame.
+    RAI volume: i goes from patient right to left, j from anterior to posterior."""
+    arr = np.zeros(SHAPE)
+    arr[1:19, 1:19, :] = 0.5      # the limb (an image needs some contrast to be drawn)
+    roi = np.zeros(SHAPE, dtype=int)
+    roi[2:6, 2:6, :] = 1          # small i, small j: patient's right, anterior
+    image = asvolume(arr, spacing=SPACING)
+    with_roi = np.asarray(quality_check_seg(image, MusegRoi(roi), LABELS)[0].convert("RGB"))
+    without_roi = np.asarray(quality_check_seg(image, MusegRoi(np.zeros(SHAPE, dtype=int)), LABELS)[0].convert("RGB"))
+    frame = with_roi[..., 0]
+    marked = np.argwhere(np.any(with_roi != without_roi, axis=-1))   # pixels coloured by the ROI only
+
+    rows, cols = frame.shape
+    assert marked[:, 0].mean() < rows / 2   # anterior -> top half
+    assert marked[:, 1].mean() < cols / 2   # patient's right -> left half
+
+
 def test_gif_written_with_all_frames(tmp_path):
     arr = np.zeros(SHAPE)
     for k in range(SHAPE[2]):

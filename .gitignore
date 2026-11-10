@@ -12,3 +12,7 @@ resultats_tests/
 *.pptx
 prompt_series_resolution.md
 museg-ai/
+analyses/*
+!analyses/*.py
+*.docx
+~$*
