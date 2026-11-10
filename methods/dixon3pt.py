@@ -104,17 +104,20 @@ class Dixon3ptMethod(Method) :
             if debug:
                 self._dump_crash(workdir, **{f"seg_input_echo_{i}": vol for i, vol in enumerate(volumes)})
             raise SegmentationError(f"Segmentation failed for {exam_id} (segment={segment})") from e
+        colors = dict(zip(labels.indices, labels.colors))
         labels = dict(zip(labels.indices, labels.descriptions))
+        labels_colored = {index: {"LABEL": name, "RGBA": (*colors[index], 0.0 if index == 0 else 1.0)}
+                          for index, name in labels.items()}
         roi_obj = rois[0]
         roi_obj.transform =[roi_obj.transform[i:i+3] for i in range(0, len(roi_obj.transform), 3)]
         if debug or qc in ("checkpoint", "global") :
             volume.write(Path(workdir) / "roi.mha", roi_obj)
-            io.write_labels(Path(workdir) / "labels.txt", labels)
-            frames = quality_check_seg(mag_1, roi_obj, labels)
+            io.write_labels(Path(workdir) / "labels.txt", labels_colored)
+            frames = quality_check_seg(mag_1, roi_obj, labels_colored)
             save_gif(frames, Path(workdir) / "segmentation.gif")
         if qc in ("checkpoint", "global"):
             volume.write(Path(qc_dir) / "roi.mha", roi_obj)
-            io.write_labels(Path(qc_dir) / "labels.txt", labels)
+            io.write_labels(Path(qc_dir) / "labels.txt", labels_colored)
             save_gif(frames, Path(qc_dir) / "segmentation.gif")
         if qc == "checkpoint":
             raise QCCheckpoint(self.CHECKPOINTS[1])

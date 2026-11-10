@@ -16,3 +16,5 @@ analyses/*
 !analyses/*.py
 *.docx
 ~$*
+plan_de_tests_g.xlsx
+scripts/build_*.py
