@@ -32,6 +32,7 @@ Usage (from PIPELINE_01, pipeline environment):
 
 import argparse
 import csv
+import os
 import shutil
 import subprocess
 import sys
@@ -44,8 +45,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tests.script import compare_results, write_csv  # noqa: E402
 
-MANUAL_ROOT = Path(r"N:\0_Wip\New\0_Etudes_Protocolisees\2_Protos_3T_4T_Humain\&6_2014_CL_Clinique"
-                   r"\3_Processed_Data\3T_Processing\Mesure_T2")
+# same folder, seen from a Windows PC (N:) or from the station (Linux)
+_MANUAL = "0_Wip/New/0_Etudes_Protocolisees/2_Protos_3T_4T_Humain/&6_2014_CL_Clinique/3_Processed_Data/3T_Processing/Mesure_T2"
+MANUAL_ROOT = Path("N:/" + _MANUAL) if os.name == "nt" else Path("/mnt/rmn_files/" + _MANUAL)
 DICOM_DIR = ROOT / "dicom" / "output_dir"
 OUT_DIR = ROOT / "resultats_tests" / "RES_lot"
 MUREPORT_RESULTS = ROOT / "workdirs" / "results"
