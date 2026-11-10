@@ -26,7 +26,7 @@ def quality_check_seg(volume, roi, labels, step=1):
                          show_labels=False, vmin=vmin, vmax=vmax) for k in range(0, volume.shape[2], step)]
     return images
 
-def save_gif(frames, path, duration=100):
+def save_gif(frames, path, duration=200):
     """Comple images into GIF. 
     
     Args:
