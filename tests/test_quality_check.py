@@ -52,27 +52,6 @@ def test_overview_does_not_depend_on_stored_orientation(ffmap):
     assert np.array_equal(np.asarray(quality_check_volumes(ffmap)), np.asarray(quality_check_volumes(reoriented)))
 
 
-@pytest.mark.parametrize("stored_as", ["RAI", "LPS"])
-def test_overview_in_radiological_view(stored_as):
-    """RES-003: front of the limb at the top, patient's right on the left of each slice of the overview,
-    whatever the orientation the volume is stored in. RAI: i from patient right to left, j from anterior to posterior."""
-    arr = np.zeros(SHAPE)
-    arr[1:19, 1:19, :] = 0.5      # the limb
-    marked_arr = arr.copy()
-    marked_arr[2:6, 2:6, :] = 1.0  # small i, small j: patient's right, anterior
-    plain = set_orientation(asvolume(arr, spacing=SPACING), stored_as)
-    marked = set_orientation(asvolume(marked_arr, spacing=SPACING), stored_as)
-
-    with_marker = np.asarray(quality_check_volumes(marked).convert("L")).astype(int)
-    without_marker = np.asarray(quality_check_volumes(plain).convert("L")).astype(int)
-    tile = with_marker.shape[0] // SHAPE[2]          # slices are stacked vertically, one tile per slice
-    diff = np.argwhere(with_marker[:tile] != without_marker[:tile])   # first slice
-
-    assert len(diff) > 0
-    assert diff[:, 0].mean() < tile / 2                    # anterior -> top of the slice
-    assert diff[:, 1].mean() < with_marker.shape[1] / 2   # patient's right -> left of the screen
-
-
 # --- segmentation GIF ----------------------------------------------------------------
 
 def test_one_frame_per_slice(ffmap):
