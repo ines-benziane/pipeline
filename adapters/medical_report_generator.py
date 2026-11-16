@@ -2,11 +2,15 @@ from pathlib import Path
 
 from medical_report.interface.orchestrator import get_exam
 from medical_report.section_generator.generate_pdf import OUTPUT_FILE, create_pdf
+from adapters.patient_identity import PatientIdentityError, fetch_identity
 
 from runner.report_generator import NoPDFGeneratedError, NoResultsFoundError, ReportGenerator
 
 
 class MedicalReportGenerator(ReportGenerator):
+    def __init__(self, identity_provider=fetch_identity):
+        self.identity_provider = identity_provider
+
     def generate(self, exam_ids, data_dir, output_dir, *, lang="en", config=None) -> Path:
         data_dir = Path(data_dir)
         output_dir = Path(output_dir)
@@ -16,9 +20,15 @@ class MedicalReportGenerator(ReportGenerator):
         exams = get_exam(exam_ids[0], data_dir, config_data=config, antecedent_id=antecedent_id)
         if not exams:
             raise NoResultsFoundError(exam_ids[0], data_dir)
+        exam_date = exams[0].exam.metadata.exam_date
+        try :
+            identity = self.identity_provider(exam_ids[0], exam_date)
+        except PatientIdentityError as error :
+            identity = None
+            print(f"Warning: patient identity not found ({error}). Fill in the name and birth date by hand in the report.")
         pdf_path = output_dir / OUTPUT_FILE
         pdf_path.unlink(missing_ok=True)
-        create_pdf(exams, output_dir=output_dir, output_name=OUTPUT_FILE, lang=lang)
+        create_pdf(exams, output_dir=output_dir, output_name=OUTPUT_FILE, lang=lang, patient_identity=identity)
         if not pdf_path.exists():
             raise NoPDFGeneratedError(exam_ids[0], pdf_path)
 

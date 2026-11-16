@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from adapters.medical_report_generator import MedicalReportGenerator
+from adapters.patient_identity import PatientIdentityError
 from medical_report.comment_generator import select_comment
 
 FIXTURES = Path(__file__).parent / "fixtures" / "report"
@@ -44,10 +45,23 @@ def _text(html):
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
 
 
+IDENTITY = {"patient_name": "TEST PATIENT", "birth_date": "01/01/1970"}   # fake PACS answer
+
+
+def _fake_pacs(exam_id, exam_date):
+    assert (exam_id, exam_date) == (EXAM_ID, EXAM_DATE)
+    return IDENTITY
+
+
+def _pacs_unreachable(exam_id, exam_date):
+    raise PatientIdentityError(f"No study found on the PACS for {exam_id} on {exam_date}")
+
+
 @pytest.fixture(scope="module")
 def report(tmp_path_factory):
     out = tmp_path_factory.mktemp("report")
-    pdf = MedicalReportGenerator().generate([EXAM_ID], FIXTURES, out, lang="fr", config=_gui_config())
+    pdf = MedicalReportGenerator(identity_provider=_fake_pacs).generate(
+        [EXAM_ID], FIXTURES, out, lang="fr", config=_gui_config())
     html = (out / "Medical_report.html").read_text(encoding="utf-8")
     return pdf, html
 
@@ -101,8 +115,28 @@ def test_evolution_against_antecedent_printed(report):
     assert f"TA: ↑ {pct}%" in _text(report[1])
 
 
-@pytest.mark.xfail(strict=True, reason="Re-identification not implemented yet (planned): the header shows no "
-                                       "patient name nor exam identifier. FONC-005 cannot pass until then.")
+def test_patient_identity_printed_in_the_header(report):
+    """FONC-005: name and birth date from the PACS in the report header (they are in no JSON)."""
+    text = _text(report[1])
+
+    assert f"Patient(e) : {IDENTITY['patient_name']}" in text
+    assert f"Date de naissance : {IDENTITY['birth_date']}" in text
+
+
+def test_report_produced_with_blank_identity_when_pacs_fails(tmp_path, capsys):
+    """PACS unreachable or exam not found: the report is still produced, the identity fields are left blank
+    to be filled in by hand, and the user is warned."""
+    pdf = MedicalReportGenerator(identity_provider=_pacs_unreachable).generate(
+        [EXAM_ID], FIXTURES, tmp_path, lang="fr", config=_gui_config())
+    text = _text((tmp_path / "Medical_report.html").read_text(encoding="utf-8"))
+
+    assert pdf.exists()
+    assert "Patient(e) : Date de naissance : Adressé" in text
+    assert "Fill in the name and birth date by hand" in capsys.readouterr().out
+
+
+@pytest.mark.xfail(strict=True, reason="The exam identifier is not printed in the header (only name, birth date "
+                                       "and exam date). To decide with the physicians.")
 def test_exam_identifier_printed(report):
     assert EXAM_ID in _text(report[1])
 
