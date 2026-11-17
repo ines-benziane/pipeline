@@ -9,7 +9,7 @@ Plus the failure case, on the first exam: no study found on the PACS -> report s
 
 The PDF (and Medical_report.html) contain the real identity: they are written to a LOCAL folder outside the
 repository and outside N: (default: <home>/FONC005_tmp), to delete once the grid is filled (--clean).
-The grid contains no name: exam IDs and results only. It is written next to the RES-003 run.
+The grid contains no name: exam IDs and results only. It is written to resultats_tests/FONC005_<date>/.
 
 Usage (PC or station, pipeline env, the machine must reach Telemis):
   python scripts/run_fonc005.py --run-dir <...>/resultats_tests/RES003_20261110 --dicom-dir <...>/dicom_lot
@@ -131,7 +131,9 @@ def main():
     print(f"failure case ({exam}): report {'produced' if failure['pdf'] else 'NOT produced'}, "
           f"identity {'blank' if failure['blank'] else 'NOT blank'}")
 
-    grid = args.run_dir / f"FONC005_verification_{datetime.now():%Y%m%d}.xlsx"
+    grid_dir = ROOT / "resultats_tests" / f"FONC005_{datetime.now():%Y%m%d}"
+    grid_dir.mkdir(parents=True, exist_ok=True)
+    grid = grid_dir / "FONC005_verification.xlsx"
     write_grid(rows, failure, grid)
     print(f"\nGrid: {grid}\nPDF with identities: {args.out}  (compare with Telemis, then: "
           f"python scripts/run_fonc005.py --clean)")

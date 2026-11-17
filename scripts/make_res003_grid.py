@@ -24,53 +24,29 @@ THIN = Border(*(Side(style="thin", color="BBBBBB"),) * 4)
 
 # (column header, file checked, how to check it, landmarks)
 CRITERIA = [
-    ("1. Rapport PDF : la face avant du membre est en haut du schéma",
-     "PDF, schémas FF et T2",
-     "Sur chaque schéma en coupe, les muscles de la face avant sont en haut.",
-     "Jambe : tibial antérieur (TA) en haut, mollet (SOL, GAS) en bas. "
-     "Cuisse : quadriceps (VL, VM, VI, RF) en haut, ischio-jambiers (SM, ST, BF) en bas."),
-    ("2. Rapport PDF : le tableau « Droite (R) » donne les valeurs de la jambe droite du patient",
-     "PDF, tableaux et schémas",
-     "Le côté ne se reconnaît pas à l'œil (les deux membres se ressemblent). "
-     "Vérifier sur un examen avec un signe propre à un côté (muscle très atteint d'un seul côté, artefact, prothèse) "
-     "et comparer avec le compte rendu de la méthode manuelle.",
-     "Sans signe propre à un côté : « Sans objet » et le noter en remarque."),
-    ("3. Rapport PDF : les muscles externes sont du côté extérieur, les internes du côté intérieur",
-     "PDF, schémas FF et T2",
-     "Sur chaque schéma, les muscles de la face externe du membre sont du côté extérieur.",
-     "Jambe : péroniers (PER) du côté du petit os (péroné), gastrocnémien médial (GAS_MED) du côté intérieur. "
-     "Cuisse : vaste latéral (VL) à l'extérieur, gracile (GRA) et sartorius (SAR) à l'intérieur."),
-    ("4. Image de contrôle (GIF) : la face avant du membre est en haut de l'image",
-     "segmentation.gif",
-     "Faire défiler le GIF : sur toutes les coupes, la face avant est en haut.",
-     "Jambe : le tibia (gros os rond, juste sous la peau) est en haut. "
-     "Cuisse : le fémur est au centre, la grosse masse du quadriceps au-dessus."),
-    ("5. Image de contrôle (GIF) : la droite du patient est à gauche de l'écran",
-     "segmentation.gif",
-     "Convention radiologique : le patient est vu depuis ses pieds, sa droite apparaît à gauche de l'écran. "
-     "Même méthode que le critère 2.",
-     "Sans signe propre à un côté : « Sans objet » et le noter en remarque."),
-    ("6. Image de contrôle (GIF) : les couleurs de la segmentation recouvrent bien les muscles",
+    ("1. Rapport PDF : vue clinique (droite du patient à droite de la page) — tous les examens",
+     "PDF, schémas et tableaux FF et T2",
+     "Sur chaque schéma, le membre droit du patient (tableau « Droite (R) ») est à droite de la page et le gauche "
+     "(« Gauche (L) ») à gauche ; la face avant du membre est en haut.",
+     "Les valeurs de chaque côté sont celles de muReport pour ce côté (contrôle automatique RES-004). "
+     "Jambe : tibial antérieur (TA) en haut. Cuisse : quadriceps (VL, VM, VI, RF) en haut."),
+    ("2. Image de contrôle (GIF) : vue radiologique (comparaison avec ITK-SNAP) — 6 examens",
+     "segmentation.gif, et ffmap.mha + roi.mha du même dossier dans ITK-SNAP",
+     "Ouvrir ffmap.mha dans ITK-SNAP (lettres R, L, A, P sur les bords de la vue axiale), y charger roi.mha et "
+     "labels.txt. Sur une même coupe, le GIF doit montrer la même image que ITK-SNAP : avant (A) en haut, "
+     "droite du patient (R) à gauche de l'écran, chaque muscle du même côté (ex. TA_R à gauche).",
+     "Comparer un détail propre à un côté (membre plus gros, muscle plus gras). "
+     "ITK-SNAP lit l'orientation dans l'en-tête du fichier : c'est la référence."),
+    ("3. Image de contrôle (GIF) : les couleurs de la segmentation sont issues des labels — 6 examens",
      "segmentation.gif",
      "Chaque couleur suit le contour d'un muscle visible, sans décalage ni débordement dans la graisse.",
      "La graisse est claire, le muscle gris foncé. Un décalage d'un muscle à l'autre, ou une couleur sur la graisse, "
      "est non conforme."),
-    ("7. Carte de graisse (overview) : la face avant du membre est en haut de l'image",
-     "overview.png",
-     "Sur chaque coupe de la colonne, la face avant est en haut.",
-     "Sur la carte de graisse, la graisse est claire et le muscle sombre ; la moelle des os est grasse, donc claire. "
-     "Jambe : le tibia (gros cercle clair, juste sous la peau) est en haut. Cuisse : le fémur au centre, "
-     "la grosse masse sombre du quadriceps au-dessus."),
-    ("8. Carte de graisse (overview) : la droite du patient est à gauche de l'écran, comme sur le GIF",
-     "overview.png et segmentation.gif (même dossier)",
-     "Comparer avec le GIF du même dossier : les deux membres sont dans le même sens "
-     "(un membre reconnaissable, par sa forme ou un muscle atteint, est du même côté de l'écran sur les deux images).",
-     "Sans signe propre à un côté : « Sans objet » et le noter en remarque."),
-    ("9. Carte de graisse (FF) : la jambe droite n'est pas inversée (jambes uniquement)",
-     "overview.png et PDF, schéma FF des jambes",
-     "Les deux jambes ont un aspect comparable. Une jambe entièrement claire (« toute en graisse ») "
-     "alors que l'autre est sombre signale une inversion eau/graisse.",
-     "Cuisses : « Sans objet » (l'inversion ne concerne que les jambes)."),
+    ("4. Carte de graisse (overview) : vue radiologique (comparaison avec ITK-SNAP) — 6 examens",
+     "overview.png, et ffmap.mha du même dossier dans ITK-SNAP",
+     "Même méthode que le critère 2 : l'overview est la carte ffmap.mha. Sur une même coupe, avant (A) en haut et "
+     "droite du patient (R) à gauche de l'écran, comme dans ITK-SNAP.",
+     "Sur la carte de graisse, la graisse est claire et le muscle sombre ; la moelle des os est grasse, donc claire."),
 ]
 
 
@@ -98,7 +74,8 @@ def header(ws, titles, widths):
 def grid_sheet(ws, rows, run_dir):
     ws.title = "Vérification"
     ws.append(["RES-003 : orientation des images et des schémas du rapport. "
-               "Une ligne par examen et segment. Mode opératoire : feuille suivante."])
+               "Une ligne par examen et segment. "
+               "Mode opératoire : feuille suivante."])
     ws["A1"].font = Font(bold=True, size=12)
     header(ws, ["Examen", "Segment", "Rapport PDF", "Images de contrôle (dossier)"] + [c[0] for c in CRITERIA]
            + ["Vérifié par", "Remarque"], [14, 10, 20, 46] + [22] * len(CRITERIA) + [16, 40])
@@ -116,8 +93,6 @@ def grid_sheet(ws, rows, run_dir):
         else:
             pdf = exam_dir / f"{r['exam']}.pdf"
             values = [""] * len(CRITERIA)
-            if r["segment"] == "thighs":
-                values[-1] = "Sans objet"
             ws.append([r["exam"], segment, f"{r['exam']}\\{pdf.name}" if pdf.exists() else "non produit",
                        dixon_qc_job(exam_dir, r["segment"])] + values + ["", ""])
             for col in range(first, first + len(CRITERIA)):
@@ -139,11 +114,14 @@ def method_sheet(ws, run_dir):
          "segmentation en couleur) et overview.png (carte de graisse).", False),
         ("Pour chaque case : « Conforme », « Non conforme » (décrire en remarque) ou « Sans objet » "
          "(critère non applicable ou non vérifiable sur cet examen). Indiquer qui a vérifié.", False),
-        ("Le côté droit/gauche ne se reconnaît pas à l'œil. La convention d'affichage droite/gauche du rapport reste "
-         "à valider avec les médecins : décrire ce qui est vu en remarque.", False),
-        ("Les 2 ou 3 premiers examens sont vérifiés avec un technicien ou un médecin, puis les suivants avec les mêmes "
-         "repères. L'orientation est produite par le même code pour tous les examens ; la segmentation et "
-         "l'inversion eau/graisse varient d'un examen à l'autre.", False),
+        ("Conventions attendues : rapport PDF en vue clinique (droite du patient à droite de la page) ; images de "
+         "contrôle (GIF, overview) en vue radiologique, comme à la console IRM (droite du patient à gauche de l'écran). "
+         "Le côté droit/gauche ne se reconnaît pas à l'œil : pour les images, la référence est ITK-SNAP.", False),
+        ("Rapport PDF (critère 1) : vérifié sur tous les examens, car c'est le document remis au médecin. "
+         "Images de contrôle (critères 2 à 4) : vérifiées sur 6 examens. Leur orientation est produite par le même "
+         "code pour tous les examens, à partir de la position du patient lue dans le DICOM (PatientPosition) : un défaut "
+         "serait le même pour tous les examens acquis dans la même position. 21 examens ont été acquis pieds en premier "
+         "(FFS) et 1 tête en premier (HFS, CL2OV260828) ; l'échantillon couvre les deux : 5 examens FFS + CL2OV260828.", False),
     ]
     for text, bold in lines:
         ws.append([text])
