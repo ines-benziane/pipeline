@@ -2,6 +2,8 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+from mutools.io import volume
+from mutools.utils.interpolate import interpolate_roi
 
 from dicomstack import DicomStack
 
@@ -137,6 +139,10 @@ class T2Map3ExpMethod(Method):
 
 
         roi, labels, exam_date = self._segment(ctx, t2_ref, exam_date)
+        if ctx.qc in ("checkpoint", "global"):
+            volume.write(Path(ctx.qc_dir) / "t2map.mha", results["t2map"])
+            roi_t2 = interpolate_roi(results["t2map"], roi)
+            volume.write(Path(ctx.qc_dir) / "roi_t2.mha", roi_t2)
 
         metadata = {
             "exam_id": ctx.exam_id,
