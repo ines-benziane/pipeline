@@ -55,6 +55,26 @@ def test_without_two_separate_legs_the_swap_is_refused(columns):
     assert exc.value.hint
 
 
+def test_split_mask_separates_touching_thighs():
+    """Two thighs joined by a bridge on one slice (groin): one object, so swap is refused;
+    after _split_mask (option -m dixon3pt:split_mask=1) they are two objects and swap-right works."""
+    mask = np.zeros((30, 4, 3), dtype=bool)
+    mask[3:13] = True               # right thigh
+    mask[18:28] = True              # left thigh
+    mask[12:19, :, 0] = True        # bridge on one slice
+    water, fat = np.where(mask, 1.0, 0.0), np.zeros(mask.shape)
+    method = Dixon3ptMethod()
+    with pytest.raises(SwapLegsError):
+        method._swap_leg(water, fat, mask, "right")
+
+    split = method._split_mask(mask)
+    new_water, new_fat = method._swap_leg(water, fat, split, "right")
+
+    assert np.all(new_fat[3:10] == 1) and np.all(new_water[3:10] == 0)      # right thigh swapped
+    assert np.all(new_water[18:28] == 1) and np.all(new_fat[18:28] == 0)    # left thigh kept
+    assert mask.sum() > split.sum() and mask[3:10].all()                    # input mask untouched
+
+
 @pytest.mark.parametrize("action", ["swap-right", "swap-left"])
 def test_swap_actions_are_accepted(action):
     Dixon3ptMethod()._check_action(action)

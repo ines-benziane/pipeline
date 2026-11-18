@@ -82,6 +82,18 @@ class Dixon3ptMethod(Method) :
         new_fat[leg] = water_map[leg]
         return new_water, new_fat
 
+    def _split_mask(self, mask):
+        """Cut the mask between the two limbs, at the middle column with the least tissue.
+        Needed when the thighs touch: with kTE = 4, mutools corrects the phase once per connected
+        object of the mask, so two touching thighs get the same correction and one can turn grey
+        (FF ~ 0.5). Cutting also makes swap-left/swap-right possible."""
+        occupancy = mask.sum(axis=(1, 2))      # axis 0 = patient right -> left
+        n = mask.shape[0]
+        col = n // 3 + int(np.argmin(occupancy[n // 3: 2 * n // 3]))
+        split = mask.copy()
+        split[col - 2: col + 3] = False
+        return split
+
 
     def segmentation(self, volumes, segment, exam_id, qc, exam_date, workdir, qc_dir=None, debug=False):
         mag_1 = abs(volumes[0])
@@ -161,6 +173,8 @@ class Dixon3ptMethod(Method) :
             rois, labels, exam_date = self._segment(ctx, volumes, exam_date)
             return (rois, labels, exam_date)
         mask = make_mask(*volumes, axis=2, threshold=10)
+        if (ctx.params or {}).get("split_mask") == "1":    # -m dixon3pt:split_mask=1
+            mask = self._split_mask(mask)
         announce("Dixon 3pt reconstruction...", level=1)
         try :
             water_map, fat_map, delta_b0, r2_star = dixon_3pt(echo_times, *volumes, mask = mask, force_reconstruction=False, global_swap=False)
