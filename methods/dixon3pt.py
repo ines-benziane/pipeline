@@ -29,6 +29,7 @@ from musegai.io import Image
 from musegai.api import run_model
 
 from methods.external_segmentation import read_external_segmentation
+from methods.patient_measures import patient_measures
 from methods.get_results.getresults import getresults
 from methods.quality_check.qc import quality_check_volumes, quality_check_seg, save_gif
 
@@ -160,6 +161,7 @@ class Dixon3ptMethod(Method) :
                 hint="check --series and --date",
             )
         exam_date = stack.single("StudyDate")
+        measures = patient_measures(stack)
         announce("parsing Dixon DICOM series...", level=1)
         try :
             info, volumes = parse_dicom_dixon_default(stack, npoint=3)
@@ -204,7 +206,7 @@ class Dixon3ptMethod(Method) :
             volume.write(Path(ctx.workdir) / "ffmap.mha", ffmap)
             volume.write(Path(ctx.workdir) / "mask.mha", mask)
             volume.write(Path(ctx.workdir) / "echo_times.mha", echo_times)
-            echo_times_record = {"echo_times": list(echo_times), "exam_date": exam_date}
+            echo_times_record = {"echo_times": list(echo_times), "exam_date": exam_date, **measures}
             (Path(ctx.workdir) / "echo_times_record.json").write_text(json.dumps(echo_times_record))
             for i, vol in enumerate(volumes):
                 volume.write(Path(ctx.workdir) / f"echo_{i}.mha", vol)
@@ -222,6 +224,7 @@ class Dixon3ptMethod(Method) :
             "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
             "segmentation": "external" if ctx.ext_seg else MODEL_BY_SEGMENT[ctx.segment],
+            **measures,
         }
 
         json_path = self.write_results(ffmap, rois, labels, metadata, ctx.workdir, ctx.decision,
@@ -243,7 +246,8 @@ class Dixon3ptMethod(Method) :
             rois, labels, exam_date = self.segmentation(volumes, segment, exam_id, qc, exam_date, workdir, qc_dir, debug)
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
                         "method": self.name, "version": self.version, "acquisition": self.report_acquisition,
-                        "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment]}
+                        "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment],
+                        **{k: echo_times_record.get(k) for k in ("patient_size", "patient_weight")}}
             json_path = self.write_results(ffmap, rois, labels, metadata, workdir, decision)
             result = Result(json_path, auto_valid=True, provenance={"name": self.name, "version": self.version})
             return result
@@ -252,7 +256,8 @@ class Dixon3ptMethod(Method) :
             exam_date = echo_times_record["exam_date"]
             metadata = {"exam_id": exam_id, "exam_date": exam_date, "segment": segment,
                         "method": self.name, "version": self.version, "acquisition": self.report_acquisition,
-                        "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment]}
+                        "biomarker": self.biomarker, "segmentation": MODEL_BY_SEGMENT[segment],
+                        **{k: echo_times_record.get(k) for k in ("patient_size", "patient_weight")}}
             ffmap = volume.read(Path(workdir) / "ffmap.mha")
             roi = [volume.read(Path(workdir) / "roi.mha")]
             labels_obj = io.read_labels(Path(workdir) / "labels.txt")

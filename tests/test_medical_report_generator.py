@@ -7,7 +7,7 @@ from adapters.medical_report_generator import MedicalReportGenerator
 from runner.report_generator import NoPDFGeneratedError
 
 
-def _fake_get_exam(exam_id, data_dir, config_data=None, antecedent_id=None):
+def _fake_get_exam(exam_id, data_dir, config_data=None, antecedent_ids=()):
     """Fake hermétique : renvoie un résultat non vide sans toucher au disque,
     pour atteindre l'appel à create_pdf (seul point réellement testé ici)."""
     return [SimpleNamespace(exam=SimpleNamespace(metadata=SimpleNamespace(exam_date="2026-01-12")))]

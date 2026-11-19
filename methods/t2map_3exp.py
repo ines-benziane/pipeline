@@ -26,6 +26,7 @@ from results_writer.writer import parse_table
 from results_writer.json_writer import JsonWriter
 
 from methods.external_segmentation import read_external_segmentation
+from methods.patient_measures import patient_measures
 
 class T2Map3ExpMethod(Method):
     name = "t2map_3exp"
@@ -86,6 +87,7 @@ class T2Map3ExpMethod(Method):
                 hint="check --series and --date",
             )
         exam_date = stack.single("StudyDate")
+        measures = patient_measures(stack)
         announce("parsing T2 DICOM series...", level=1)
         try:
             info, volumes = parse_dicom_msme(stack, min_echo_num=8)
@@ -153,6 +155,7 @@ class T2Map3ExpMethod(Method):
             "acquisition": self.report_acquisition,
             "biomarker": self.biomarker,
             "segmentation": "external" if ctx.ext_seg else MODEL_BY_SEGMENT[ctx.segment],
+            **measures,
         }
 
         json_path = self.write_results(results, roi, labels, metadata, ctx.workdir, ctx.decision,

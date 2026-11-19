@@ -16,8 +16,8 @@ class MedicalReportGenerator(ReportGenerator):
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        antecedent_id = exam_ids[1] if len(exam_ids) > 1 else None
-        exams = get_exam(exam_ids[0], data_dir, config_data=config, antecedent_id=antecedent_id)
+        antecedent_ids = exam_ids[1:]
+        exams = get_exam(exam_ids[0], data_dir, config_data=config, antecedent_ids=antecedent_ids)
         if not exams:
             raise NoResultsFoundError(exam_ids[0], data_dir)
         exam_date = exams[0].exam.metadata.exam_date

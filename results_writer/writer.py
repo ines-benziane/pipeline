@@ -100,6 +100,8 @@ def parse_table(table, metadata) -> Exam:
             birth_date=metadata.get("birth_date"),
             referring_doctor=metadata.get("referring_doctor"),
             qc_comment=metadata.get("qc_comment"),
-            qc_decision=metadata.get("qc_decision")
+            qc_decision=metadata.get("qc_decision"),
+            patient_size=metadata.get("patient_size"),
+            patient_weight=metadata.get("patient_weight"),
         )
     )

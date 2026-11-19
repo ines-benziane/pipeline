@@ -19,14 +19,14 @@ import pytest
 from adapters.medical_report_generator import MedicalReportGenerator
 from adapters.patient_identity import PatientIdentityError
 from medical_report.comment_generator import select_comment
+from medical_report.section_generator.src.domain.report_muscles import diagram_muscle_ids
 
 FIXTURES = Path(__file__).parent / "fixtures" / "report"
 EXAM_ID, EXAM_DATE = "E2E001", "2020-01-01"
 SECTIONS = [("FF", "legs", "dixon3pt"), ("T2", "legs", "t2map_3exp"),
             ("FF", "thighs", "dixon3pt"), ("T2", "thighs", "t2map_3exp")]
-# muscles listed in the report value tables (templates/*/1slice/<segment>/section_design.html)
-TABLE_MUSCLES = {"legs": ["TA", "ED", "PER", "DLPC", "POP", "SOL", "GAS_MED", "GAS_LAT"],
-                 "thighs": ["VL", "VI", "VM", "RF", "SAR", "GRA", "SM", "ST", "BF", "AM", "AL"]}
+# muscles of the value tables = the muscles drawn on the diagram (src/domain/report_muscles.py)
+TABLE_MUSCLES = {segment: diagram_muscle_ids(segment) for segment in ("legs", "thighs")}
 SIDE_LABELS = {"L": "Gauche (L)", "R": "Droite (R)"}
 
 
@@ -84,7 +84,8 @@ def test_pdf_is_produced(report):
 
 
 def test_exam_date_printed(report):
-    assert f"Date d'examen : {EXAM_DATE}" in _text(report[1])
+    year, month, day = EXAM_DATE.split("-")
+    assert f"Date d'examen : {day}/{month}/{year}" in _text(report[1])
 
 
 @pytest.mark.parametrize("biomarker, segment, method", SECTIONS)
@@ -112,7 +113,9 @@ def test_evolution_against_antecedent_printed(report):
               if m["side"] == "R"}
     pct = round((current["TA"] - before["TA"]) * 100)
 
-    assert f"TA: ↑ {pct}%" in _text(report[1])
+    text = _text(report[1])
+    assert f"TA: ↑ {pct} pt" in text                                      # FF evolution in percentage points
+    assert "Évolution depuis l'examen du 01/01/2019 (1 an)" in text       # date of the antecedent and time elapsed
 
 
 def test_patient_identity_printed_in_the_header(report):
@@ -141,9 +144,35 @@ def test_exam_identifier_printed(report):
     assert EXAM_ID in _text(report[1])
 
 
-@pytest.mark.xfail(strict=True, reason="AB and BF_SH (thighs) are segmented but absent from the 1slice value tables "
-                                       "(template list of 11 muscles). Report layout change, to arbitrate with a physician.")
-def test_every_segmented_thigh_muscle_has_a_value_in_the_tables(report):
-    segmented = {m["name"] for m in _exam("thighs", "dixon3pt")["muscles"]}
+def test_every_segmented_thigh_muscle_has_a_value_in_the_report(report):
+    """No segmented muscle is lost: the muscles drawn on the diagram are in the tables, the others
+    (e.g. AB, BF_SH, AL) named under them, with their value in the column of their side."""
     tables = " ".join(_side_tables(report[1], "L"))
-    assert all(f"{name}:" in tables for name in segmented)
+    extra_left = " ".join(_text(b) for b in re.findall(r'<div class="metrics-col notes-side-L".*?</table>', report[1], flags=re.S))
+    text = _text(report[1])
+    for m in (m for m in _exam("thighs", "dixon3pt")["muscles"] if m["side"] == "L"):
+        value = f"{m['name']}: {_displayed('FF', m['volume']['stats']['FF'])}"
+        if m["name"] in TABLE_MUSCLES["thighs"]:
+            assert value in tables, m["name"]
+        else:
+            assert f"{m['name']} (" in text and value in extra_left, m["name"]
+
+def test_height_and_weight_printed_in_the_header_when_known(tmp_path):
+    """Lot 5: height and weight from the DICOM headers (result JSON metadata) under the birth date."""
+    data = tmp_path / "data"
+    data.mkdir()
+    for f in FIXTURES.glob(f"{EXAM_ID}_{EXAM_DATE}_*.json"):
+        exam = json.loads(f.read_text(encoding="utf-8"))
+        exam["metadata"].update(patient_size=1.68, patient_weight=61.0)
+        (data / f.name).write_text(json.dumps(exam), encoding="utf-8")
+
+    MedicalReportGenerator(identity_provider=_fake_pacs).generate(
+        [EXAM_ID], data, tmp_path / "out", lang="fr", config=_gui_config())
+    text = _text((tmp_path / "out" / "Medical_report.html").read_text(encoding="utf-8"))
+
+    assert "Taille : 1.68 m · Poids : 61 kg" in text
+
+
+def test_no_height_or_weight_line_when_unknown(report):
+    """The fixtures have no height nor weight: nothing printed (no empty "Taille :")."""
+    assert "Taille :" not in _text(report[1]) and "Poids :" not in _text(report[1])
