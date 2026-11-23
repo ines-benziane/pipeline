@@ -19,14 +19,14 @@ import pytest
 from adapters.medical_report_generator import MedicalReportGenerator
 from adapters.patient_identity import PatientIdentityError
 from medical_report.comment_generator import select_comment
-from medical_report.section_generator.src.domain.report_muscles import diagram_muscle_ids
+from medical_report.section_generator.src.domain.report_muscles import abbr, muscle_ids
 
 FIXTURES = Path(__file__).parent / "fixtures" / "report"
 EXAM_ID, EXAM_DATE = "E2E001", "2020-01-01"
 SECTIONS = [("FF", "legs", "dixon3pt"), ("T2", "legs", "t2map_3exp"),
             ("FF", "thighs", "dixon3pt"), ("T2", "thighs", "t2map_3exp")]
-# muscles of the value tables = the muscles drawn on the diagram (src/domain/report_muscles.py)
-TABLE_MUSCLES = {segment: diagram_muscle_ids(segment) for segment in ("legs", "thighs")}
+# muscles of the value tables = every muscle of the report list (src/domain/report_muscles.py)
+TABLE_MUSCLES = {segment: muscle_ids(segment) for segment in ("legs", "thighs")}
 SIDE_LABELS = {"L": "Gauche (L)", "R": "Droite (R)"}
 
 
@@ -94,7 +94,8 @@ def test_every_muscle_value_lands_on_the_right_muscle_and_side(report, biomarker
     """RES-004 (automated part): each value in the report tables is the JSON value of that muscle and side."""
     values = {m["name"]: m["volume"]["stats"][biomarker] for m in _exam(segment, method)["muscles"]
               if m["side"] == side and biomarker in m["volume"]["stats"]}
-    expected = [f"{name}: {_displayed(biomarker, values[name])}" for name in TABLE_MUSCLES[segment]]
+    expected = [f"{abbr(name)}: {_displayed(biomarker, values[name])}" for name in TABLE_MUSCLES[segment]
+                if name in values]
 
     tables = _side_tables(report[1], side)
     assert any(all(e in t for e in expected) for t in tables), expected
@@ -144,18 +145,13 @@ def test_exam_identifier_printed(report):
     assert EXAM_ID in _text(report[1])
 
 
-def test_every_segmented_thigh_muscle_has_a_value_in_the_report(report):
-    """No segmented muscle is lost: the muscles drawn on the diagram are in the tables, the others
-    (e.g. AB, BF_SH, AL) named under them, with their value in the column of their side."""
+def test_every_segmented_thigh_muscle_has_a_value_in_the_tables(report):
+    """No segmented muscle is lost: all of them in the tables, also those not drawn on the diagram
+    (AB, BF_SH, AL), under their abbreviation ("*" when absent from the slice shown)."""
     tables = " ".join(_side_tables(report[1], "L"))
-    extra_left = " ".join(_text(b) for b in re.findall(r'<div class="metrics-col notes-side-L".*?</table>', report[1], flags=re.S))
-    text = _text(report[1])
     for m in (m for m in _exam("thighs", "dixon3pt")["muscles"] if m["side"] == "L"):
-        value = f"{m['name']}: {_displayed('FF', m['volume']['stats']['FF'])}"
-        if m["name"] in TABLE_MUSCLES["thighs"]:
-            assert value in tables, m["name"]
-        else:
-            assert f"{m['name']} (" in text and value in extra_left, m["name"]
+        assert f"{abbr(m['name'])}: {_displayed('FF', m['volume']['stats']['FF'])}" in tables, m["name"]
+
 
 def test_height_and_weight_printed_in_the_header_when_known(tmp_path):
     """Lot 5: height and weight from the DICOM headers (result JSON metadata) under the birth date."""
