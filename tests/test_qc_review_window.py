@@ -141,6 +141,23 @@ def test_draft_is_saved_then_resumed_then_replaced_by_the_validated_qc(root, run
     assert (qc.qc_id, qc.status) == (draft.qc_id, ReviewStatus.VALIDATED)
 
 
+def test_overview_is_always_shown_whole_when_the_window_is_resized(root, tmp_path):
+    from PIL import Image
+    path = tmp_path / "overview.png"
+    Image.new("L", (448, 2240)).save(path)   # 10 slices in one column: taller than most screens
+    viewer = qrw.OverviewViewer(root, path, "aperçu")
+    root.update()
+
+    for geometry in (None, "300x300", "900x400"):
+        if geometry:
+            viewer.top.geometry(geometry)
+            root.update()
+        shown_w, shown_h = viewer.photo.width(), viewer.photo.height()
+        assert shown_w <= viewer.label.winfo_width() and shown_h <= viewer.label.winfo_height()
+        assert abs(shown_w / shown_h - 448 / 2240) < 0.02   # proportions kept
+    viewer.top.destroy()
+
+
 def test_summary_says_what_the_report_will_contain(window):
     _fill(_block(window, "thighs", "dixon3pt"))
     window._refresh_summary()

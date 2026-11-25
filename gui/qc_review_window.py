@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import messagebox, ttk
 
+from PIL import Image, ImageTk
+
 from adapters.file_qc_review_store import FileQCReviewStore
 from runner import job_store
 from runner.qc_review import (
@@ -124,8 +126,8 @@ class BlockForm:
         top = tk.Frame(self.frame, bg=BG)
         top.grid(row=0, column=0, columnspan=6, sticky="we", pady=(0, 2))
         tk.Label(top, text=f"run {self.job.job_id}", bg=BG, fg=GREY).pack(side=tk.LEFT, padx=6)
-        if not self._has_qc_files():
-            tk.Label(top, text="fichiers de QC absents (run lancé sans mode QC) : aperçu et ITK-SNAP indisponibles",
+        if not self._can_open_itksnap():
+            tk.Label(top, text="segmentation absente du dossier de QC (run lancé sans mode QC) : ITK-SNAP indisponible",
                      bg=BG, fg=RED).pack(side=tk.LEFT, padx=6)
         self._note = tk.Label(top, text="", bg=BG, fg=ORANGE, font=("Helvetica", 9, "italic"))
         self._note.pack(side=tk.LEFT, padx=6)
@@ -143,7 +145,7 @@ class BlockForm:
         row = 2
         self._part_label(row, "Cartographie")
         if self.method == "dixon3pt":
-            self._button(row, 1, "Voir l'aperçu", self._show_overview)
+            self._button(row, 1, "Voir l'aperçu", self._show_overview, self._overview_path().exists())
             hint = "inversion, zone grise, artefact"
         else:
             tk.Label(self.frame, text="pas d'aperçu", bg=BG, fg=GREY, font=("Helvetica", 9, "italic")).grid(
@@ -156,7 +158,7 @@ class BlockForm:
     def _build_segmentation_row(self):
         row = 3
         self._part_label(row, "Segmentation")
-        self._button(row, 1, "Ouvrir ITK-SNAP", self._open_itksnap)
+        self._button(row, 1, "Ouvrir ITK-SNAP", self._open_itksnap, self._can_open_itksnap())
         box = tk.Frame(self.frame, bg=BG)
         box.grid(row=row, column=2, sticky="w", padx=6)
         self.counts = {}
@@ -192,8 +194,8 @@ class BlockForm:
     def _part_label(self, row, text):
         tk.Label(self.frame, text=text, bg=BG, font=("Helvetica", 10, "bold")).grid(row=row, column=0, sticky="w", padx=6)
 
-    def _button(self, row, col, text, command):
-        state = "normal" if self._has_qc_files() else "disabled"
+    def _button(self, row, col, text, command, available):
+        state = "normal" if available else "disabled"
         tk.Button(self.frame, text=text, bg=BUTTON, fg=PRIMARY, relief="flat", padx=8, command=command,
                   state=state).grid(row=row, column=col, sticky="w", padx=6)
 
@@ -343,20 +345,15 @@ class BlockForm:
 
     # --- files of the run
 
-    def _has_qc_files(self):
+    def _overview_path(self):
+        return self.qc_dir / "overview.png" if self.qc_dir else Path("overview.png-absent")
+
+    def _can_open_itksnap(self):
+        """ITK-SNAP needs the map of the block and its segmentation."""
         return self.qc_dir is not None and all((self.qc_dir / name).exists() for name in QC_FILES[self.method])
 
     def _show_overview(self):
-        path = self.qc_dir / "overview.png"
-        if not path.exists():
-            messagebox.showwarning("Aperçu", f"Pas d'aperçu pour ce run :\n{path}", parent=self.frame)
-            return
-        viewer = tk.Toplevel(self.frame)
-        viewer.title(f"Aperçu · {self.title}")
-        image = tk.PhotoImage(file=str(path))
-        label = tk.Label(viewer, image=image)
-        label.image = image   # keep a reference, otherwise tkinter frees the image
-        label.pack()
+        OverviewViewer(self.frame, self._overview_path(), f"Aperçu · {self.title} · run {self.job.job_id}")
 
     def _open_itksnap(self):
         """ITK-SNAP in the background (the QC window stays usable): map of the block, its segmentation, the labels."""
@@ -368,6 +365,32 @@ class BlockForm:
         except OSError as error:
             messagebox.showerror("ITK-SNAP", f"Impossible de lancer ITK-SNAP ({ITKSNAP}) :\n{error}\n\n"
                                  "Chemin réglable avec la variable d'environnement MUREPORT_ITKSNAP.", parent=self.frame)
+
+
+class OverviewViewer:
+    """The run's overview.png in its own window, always shown whole: it opens fitted to the screen and follows
+    the window size (aspect ratio kept). The image itself is the one the run wrote, untouched."""
+
+    SCREEN_SHARE = 0.85   # largest part of the screen the window takes when it opens
+
+    def __init__(self, parent, path, title):
+        self.image = Image.open(path)
+        self.top = tk.Toplevel(parent, bg="black")
+        self.top.title(title)
+        width, height = self.image.size
+        scale = min(1.0, self.SCREEN_SHARE * self.top.winfo_screenwidth() / width,
+                    self.SCREEN_SHARE * self.top.winfo_screenheight() / height)
+        self.top.geometry(f"{max(1, int(width * scale))}x{max(1, int(height * scale))}")   # fixed by the user from now on
+        self.label = tk.Label(self.top, bg="black")
+        self.label.pack(fill=tk.BOTH, expand=True)
+        self.label.bind("<Configure>", self._fit)
+
+    def _fit(self, event):
+        width, height = self.image.size
+        scale = min(event.width / width, event.height / height)
+        size = (max(1, int(width * scale)), max(1, int(height * scale)))
+        self.photo = ImageTk.PhotoImage(self.image.resize(size, Image.LANCZOS))   # keep a reference for tkinter
+        self.label.config(image=self.photo)
 
 
 class QCReviewWindow:
