@@ -20,6 +20,7 @@ from adapters.medical_report_generator import MedicalReportGenerator
 from adapters.patient_identity import PatientIdentityError
 from medical_report.comment_generator import select_comment
 from medical_report.section_generator.src.domain.report_muscles import abbr, muscle_ids
+from qc_helpers import store_with_validated
 
 FIXTURES = Path(__file__).parent / "fixtures" / "report"
 EXAM_ID, EXAM_DATE = "E2E001", "2020-01-01"
@@ -28,6 +29,12 @@ SECTIONS = [("FF", "legs", "dixon3pt"), ("T2", "legs", "t2map_3exp"),
 # muscles of the value tables = every muscle of the report list (src/domain/report_muscles.py)
 TABLE_MUSCLES = {segment: muscle_ids(segment) for segment in ("legs", "thighs")}
 SIDE_LABELS = {"L": "Gauche (L)", "R": "Droite (R)"}
+BLOCKS = [(segment, method) for _, segment, method in SECTIONS]
+
+
+def _all_checked(root):
+    """Every block of E2E001 has a passing validated QC (the antecedent shares the exam id, so it passes too)."""
+    return store_with_validated(root, EXAM_ID, BLOCKS)
 
 
 def _gui_config():
@@ -60,7 +67,8 @@ def _pacs_unreachable(exam_id, exam_date):
 @pytest.fixture(scope="module")
 def report(tmp_path_factory):
     out = tmp_path_factory.mktemp("report")
-    pdf = MedicalReportGenerator(identity_provider=_fake_pacs).generate(
+    store = _all_checked(tmp_path_factory.mktemp("qc"))
+    pdf = MedicalReportGenerator(identity_provider=_fake_pacs, qc_store=store).generate(
         [EXAM_ID], FIXTURES, out, lang="fr", config=_gui_config())
     html = (out / "Medical_report.html").read_text(encoding="utf-8")
     return pdf, html
@@ -130,7 +138,7 @@ def test_patient_identity_printed_in_the_header(report):
 def test_report_produced_with_blank_identity_when_pacs_fails(tmp_path, capsys):
     """PACS unreachable or exam not found: the report is still produced, the identity fields are left blank
     to be filled in by hand, and the user is warned."""
-    pdf = MedicalReportGenerator(identity_provider=_pacs_unreachable).generate(
+    pdf = MedicalReportGenerator(identity_provider=_pacs_unreachable, qc_store=_all_checked(tmp_path / "qc")).generate(
         [EXAM_ID], FIXTURES, tmp_path, lang="fr", config=_gui_config())
     text = _text((tmp_path / "Medical_report.html").read_text(encoding="utf-8"))
 
@@ -162,7 +170,7 @@ def test_height_and_weight_printed_in_the_header_when_known(tmp_path):
         exam["metadata"].update(patient_size=1.68, patient_weight=61.0)
         (data / f.name).write_text(json.dumps(exam), encoding="utf-8")
 
-    MedicalReportGenerator(identity_provider=_fake_pacs).generate(
+    MedicalReportGenerator(identity_provider=_fake_pacs, qc_store=_all_checked(tmp_path / "qc")).generate(
         [EXAM_ID], data, tmp_path / "out", lang="fr", config=_gui_config())
     text = _text((tmp_path / "out" / "Medical_report.html").read_text(encoding="utf-8"))
 

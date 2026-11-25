@@ -15,6 +15,14 @@ class NoResultsFoundError(ReportGenerationError):
         self.exam_id = exam_id
         self.data_dir = data_dir
 
+class NoSectionAfterQCError(ReportGenerationError):
+    """No section of the exam has a validated QC that lets it appear: no report."""
+    def __init__(self, exam_id, removed):
+        super().__init__(f"No section of exam {exam_id} passed the QC (removed: {', '.join(removed)})",
+                         hint="validate the QC of the exam in the QC window, then generate the report again")
+        self.exam_id = exam_id
+        self.removed = removed
+
 class NoPDFGeneratedError(ReportGenerationError):
     """Postcondition : we tried to generate the PDF and it failed."""
     def __init__(self, exam_id, pdf_path):

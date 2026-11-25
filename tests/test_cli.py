@@ -6,6 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from cli import main as cli_main
+from qc_helpers import store_with_validated
 from runner.pipeline import PipelineOutcome
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -142,13 +143,33 @@ def test_process_end_to_end_with_dummy_method(run, isolated_store, tmp_path):
     assert any(isolated_store.glob("EXAM001_*.json"))
 
 
-def test_report_generates_the_pdf(run, tmp_path):
+E2E_BLOCKS = [(segment, method) for segment in ("legs", "thighs") for method in ("dixon3pt", "t2map_3exp")]
+
+
+def _qc_store_in(monkeypatch, store):
+    """The CLI builds its report generator with the default QC store: make that default `store`."""
+    from adapters import medical_report_generator as mrg
+    monkeypatch.setattr(mrg, "FileQCReviewStore", lambda: store)
+
+
+def test_report_generates_the_pdf(run, tmp_path, monkeypatch):
     """Integration: CLI 'report' -> medical_report -> PDF, with the default report config."""
+    _qc_store_in(monkeypatch, store_with_validated(tmp_path / "qc", "E2E001", E2E_BLOCKS))
     result = run("report", "--exam-id", "E2E001", "--data-dir", str(FIXTURES / "report"),
                  "--output-dir", str(tmp_path), "--lang", "fr")
 
     assert result.exit_code == 0, result.output
     assert (tmp_path / "Medical_report.pdf").read_bytes()[:5] == b"%PDF-"
+
+
+def test_report_without_validated_qc_is_a_clean_error(run, tmp_path, monkeypatch):
+    _qc_store_in(monkeypatch, store_with_validated(tmp_path / "qc", "E2E001", []))
+    result = run("report", "--exam-id", "E2E001", "--data-dir", str(FIXTURES / "report"),
+                 "--output-dir", str(tmp_path), "--lang", "fr")
+
+    assert result.exit_code == 1
+    assert "Error:" in result.output
+    assert not (tmp_path / "Medical_report.pdf").exists()
 
 
 def test_report_for_unknown_exam_is_a_clean_error(run, tmp_path):
