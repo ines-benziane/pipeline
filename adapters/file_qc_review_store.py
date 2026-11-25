@@ -84,8 +84,8 @@ def _qc_from_dict(data: dict) -> QCReview:
         author=data["author"],
         started_at=datetime.fromisoformat(data["started_at"]),  # texte → date
         rules_version=data["rules_version"],
-        map=_map_check_from_dict(data["map"]),                        # étape suivante
-        segmentation=_segmentation_check_from_dict(data["segmentation"]),  # étape suivante
+        map=_map_check_from_dict(data["map"]),                        
+        segmentation=_segmentation_check_from_dict(data["segmentation"]), 
         validated_at=datetime.fromisoformat(validated_at) if validated_at else None,
         duration_s=data["duration_s"],
         copied_from=data["copied_from"],

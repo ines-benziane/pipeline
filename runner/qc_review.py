@@ -1,4 +1,4 @@
-"""Code of the qc review module. Declares dataclasses needed for the qc review"""
+"""Code of the qc review module. Declares dataclasses needed for the qc review, and main classes."""
 
 from dataclasses import dataclass, replace
 from datetime import datetime
