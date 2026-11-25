@@ -13,6 +13,7 @@ from methods.t2map_3exp import T2Map3ExpMethod
 from sections import SectionForm
 from session import ReportSession
 from widgets import make_shadow_button
+from qc_review_window import QCReviewWindow
 
 
 methods_registry.register(Dixon3ptMethod)
@@ -122,6 +123,10 @@ class MainApp():
             report_frame, text="Browse", command=self._browse_report_dir,
             bg="#e4e6e9", fg=PRIMARY, relief="flat",
         ).pack(side=tk.LEFT)
+        tk.Button(
+            report_frame, text="Contrôle qualité", command=self._on_qc_review,
+            bg="#e4e6e9", fg=PRIMARY, relief="flat",
+        ).pack(side=tk.LEFT, padx=(12, 0))
 
         report_container, self._report_btn = make_shadow_button(
             self.root, "Generate report", self._on_generate_report,
@@ -140,6 +145,14 @@ class MainApp():
         if path:
             self._report_dir_entry.delete(0, tk.END)
             self._report_dir_entry.insert(0, path)
+
+    def _on_qc_review(self):
+        """Open the QC window on the exam shared by the sections."""
+        exam_id = self.session.shared_exam_id(self.sections)
+        if not exam_id:
+            self._set_status("All sections must share the same Exam ID to open the QC.")
+            return
+        QCReviewWindow(self.root, exam_id)
 
     def _on_manage(self):
         """Validate every section (main thread), then run them all via the session."""
