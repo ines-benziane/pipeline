@@ -58,3 +58,24 @@ def load(job_id):
         qc_dir=Path(data["qc_dir"]) if data.get("qc_dir") else None,
         ext_seg=Path(data["ext_seg"]) if data.get("ext_seg") else None,
     )
+
+
+def load_exam_jobs(exam_id):
+    """All the runs of an exam, read from JOBS_DIR. Empty list if the exam was never run."""
+    jobs = []
+    for path in sorted(JOBS_DIR.glob(f"{exam_id}-*.json")):
+        job = load(path.stem)
+        if job.exam_id == exam_id:   # the file name pattern alone could match a longer exam id
+            jobs.append(job)
+    return jobs
+
+
+def latest_ready_job(jobs, segment, method):
+    """The run to check for one block: the most recent run of this segment and method whose results are ready.
+    The job_id holds the date and time of the run, so the greatest job_id is the most recent. None if there is none."""
+    ready = [job for job in jobs
+             if job.segment == segment and job.method_name == method and job.state is JobState.RESULTS_READY]
+    if not ready:
+        return None
+    return max(ready, key=lambda job: job.job_id)
+
