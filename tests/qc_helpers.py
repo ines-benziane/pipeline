@@ -1,9 +1,8 @@
 """Helpers for the tests that generate a report: the report only shows sections with a validated QC,
-so these tests first save validated QCs in a temporary FileQCReviewStore."""
+so these tests first give the report a store holding validated QCs (in memory: the report only talks to the port)."""
 
 from datetime import datetime
 
-from adapters.file_qc_review_store import FileQCReviewStore
 from runner.qc_review import (
     ErrorCounts,
     Grade,
@@ -14,6 +13,20 @@ from runner.qc_review import (
     SegmentationCheck,
     SegmentationDecision,
 )
+from runner.qc_review_store import QCReviewStore
+
+
+class MemoryQCReviewStore(QCReviewStore):
+    """QCReviewStore kept in a dict: same behaviour as the file store, no files."""
+
+    def __init__(self):
+        self.qcs = {}
+
+    def save(self, qc):
+        self.qcs[qc.qc_id] = qc
+
+    def list_for_block(self, exam_id, segment, method):
+        return [qc for qc in self.qcs.values() if (qc.exam_id, qc.segment, qc.method) == (exam_id, segment, method)]
 
 
 def validated_qc(exam_id, segment, method, map_decision=MapDecision.COMPLETE, map_reason=None,
@@ -31,9 +44,9 @@ def validated_qc(exam_id, segment, method, map_decision=MapDecision.COMPLETE, ma
     )
 
 
-def store_with_validated(root, exam_id, blocks):
-    """A FileQCReviewStore in `root` where each (segment, method) block of the exam has a passing validated QC."""
-    store = FileQCReviewStore(root)
+def store_with_validated(exam_id, blocks):
+    """A store where each (segment, method) block of the exam has a passing validated QC."""
+    store = MemoryQCReviewStore()
     for segment, method in blocks:
         store.save(validated_qc(exam_id, segment, method))
     return store

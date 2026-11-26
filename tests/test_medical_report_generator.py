@@ -39,7 +39,7 @@ def _fake_create_pdf_writes_nothing(*args, **kwargs):
 
 
 def _checked(tmp_path):
-    return store_with_validated(tmp_path / "qc", "exam_test", [("thighs", "dixon3pt")])
+    return store_with_validated("exam_test", [("thighs", "dixon3pt")])
 
 
 def test_generate_raises_when_create_pdf_writes_nothing(tmp_path, monkeypatch):
@@ -114,7 +114,7 @@ def test_section_not_fully_accepted_is_removed(tmp_path, monkeypatch, pdf_input,
 
 def test_no_report_when_no_section_passes_the_qc(tmp_path, monkeypatch, pdf_input):
     with pytest.raises(NoSectionAfterQCError):
-        _generate(tmp_path, monkeypatch, [_section("thighs", "dixon3pt")], store_with_validated(tmp_path / "qc", "x", []))
+        _generate(tmp_path, monkeypatch, [_section("thighs", "dixon3pt")], store_with_validated("x", []))
 
     assert "sections" not in pdf_input   # create_pdf never called
 

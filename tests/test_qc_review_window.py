@@ -1,7 +1,8 @@
 """QC review window (gui/qc_review_window.py), driven without clicks: entries are set through the window's
-variables, then "Valider" is called. Runs are written in a temporary JOBS_DIR, QCs in a temporary store.
+variables, then "Valider" is called. Runs (jobs and results) are written in temporary folders, where the store keeps the QCs.
 Skipped where no display is available (e.g. over plain SSH on the station)."""
 
+import json
 import tkinter as tk
 
 import pytest
@@ -38,16 +39,25 @@ def dialogs(monkeypatch):
 
 @pytest.fixture
 def runs(tmp_path, monkeypatch):
-    """Thighs FF and T2 have a finished run; legs were not acquired."""
+    """Thighs FF and T2 have a finished run (job + results in its folder + copy for the report); legs were not acquired."""
     monkeypatch.setattr(job_store, "JOBS_DIR", tmp_path / "jobs")
     for job_id, method in [(f"{EXAM}-20261126-090000-aaaa", "dixon3pt"), (f"{EXAM}-20261126-090100-bbbb", "t2map_3exp")]:
         job_store.save(Job(exam_id=EXAM, source_dir="src", segment="thighs", method_name=method, series=[1],
                            state=JobState.RESULTS_READY, job_id=job_id))
+        name = f"{EXAM}_2026-11-26_thighs_{method}_1.0_1.0.json"
+        text = json.dumps({"muscles": [], "metadata": {"exam_id": EXAM, "job_id": job_id}})
+        for folder in (tmp_path / "workdirs" / job_id, tmp_path / "results"):
+            folder.mkdir(parents=True, exist_ok=True)
+            (folder / name).write_text(text, encoding="utf-8")
+
+
+def _store(tmp_path):
+    return FileQCReviewStore(result_dir=tmp_path / "results", working_dir=tmp_path / "workdirs")
 
 
 @pytest.fixture
 def window(root, runs, tmp_path, dialogs):
-    return qrw.QCReviewWindow(root, EXAM, store=FileQCReviewStore(tmp_path / "qc"))
+    return qrw.QCReviewWindow(root, EXAM, store=_store(tmp_path))
 
 
 def _block(window, segment, method):
@@ -71,7 +81,7 @@ def test_validate_saves_one_validated_qc_per_filled_block(window, tmp_path, dial
     _fill(_block(window, "thighs", "dixon3pt"))
     window._validate()
 
-    store = FileQCReviewStore(tmp_path / "qc")
+    store = _store(tmp_path)
     [qc] = store.list_for_block(EXAM, "thighs", "dixon3pt")
     assert (qc.status, qc.job_id, qc.segmentation.grade) == (ReviewStatus.VALIDATED, f"{EXAM}-20261126-090000-aaaa", Grade.GOOD)
     assert qc.validated_at is not None and qc.duration_s is not None
@@ -84,7 +94,7 @@ def test_incomplete_block_blocks_the_whole_validation(window, tmp_path, dialogs)
     _block(window, "thighs", "t2map_3exp").map_decision.set(MapDecision.REJECTED.value)   # no reason, no seg decision
     window._validate()
 
-    assert FileQCReviewStore(tmp_path / "qc").list_for_block(EXAM, "thighs", "dixon3pt") == []
+    assert _store(tmp_path).list_for_block(EXAM, "thighs", "dixon3pt") == []
     assert dialogs[-1][0] == "showwarning"
 
 
@@ -119,12 +129,12 @@ def test_muscle_errors_are_saved_with_the_qc(window, tmp_path):
         block._add_error()
     window._validate()
 
-    [qc] = FileQCReviewStore(tmp_path / "qc").list_for_block(EXAM, "thighs", "dixon3pt")
+    [qc] = _store(tmp_path).list_for_block(EXAM, "thighs", "dixon3pt")
     assert qc.segmentation.errors == (MuscleError("VL", "VI", Side.LEFT), MuscleError("SAR", "background", Side.BOTH))
 
 
 def test_draft_is_saved_then_resumed_then_replaced_by_the_validated_qc(root, runs, tmp_path, dialogs):
-    store = FileQCReviewStore(tmp_path / "qc")
+    store = _store(tmp_path)
     first = qrw.QCReviewWindow(root, EXAM, store=store)
     _block(first, "thighs", "dixon3pt").map_decision.set(MapDecision.COMPLETE.value)
     first._save_drafts()

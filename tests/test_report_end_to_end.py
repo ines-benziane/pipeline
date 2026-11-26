@@ -32,9 +32,9 @@ SIDE_LABELS = {"L": "Gauche (L)", "R": "Droite (R)"}
 BLOCKS = [(segment, method) for _, segment, method in SECTIONS]
 
 
-def _all_checked(root):
+def _all_checked():
     """Every block of E2E001 has a passing validated QC (the antecedent shares the exam id, so it passes too)."""
-    return store_with_validated(root, EXAM_ID, BLOCKS)
+    return store_with_validated(EXAM_ID, BLOCKS)
 
 
 def _gui_config():
@@ -67,7 +67,7 @@ def _pacs_unreachable(exam_id, exam_date):
 @pytest.fixture(scope="module")
 def report(tmp_path_factory):
     out = tmp_path_factory.mktemp("report")
-    store = _all_checked(tmp_path_factory.mktemp("qc"))
+    store = _all_checked()
     pdf = MedicalReportGenerator(identity_provider=_fake_pacs, qc_store=store).generate(
         [EXAM_ID], FIXTURES, out, lang="fr", config=_gui_config())
     html = (out / "Medical_report.html").read_text(encoding="utf-8")
@@ -138,7 +138,7 @@ def test_patient_identity_printed_in_the_header(report):
 def test_report_produced_with_blank_identity_when_pacs_fails(tmp_path, capsys):
     """PACS unreachable or exam not found: the report is still produced, the identity fields are left blank
     to be filled in by hand, and the user is warned."""
-    pdf = MedicalReportGenerator(identity_provider=_pacs_unreachable, qc_store=_all_checked(tmp_path / "qc")).generate(
+    pdf = MedicalReportGenerator(identity_provider=_pacs_unreachable, qc_store=_all_checked()).generate(
         [EXAM_ID], FIXTURES, tmp_path, lang="fr", config=_gui_config())
     text = _text((tmp_path / "Medical_report.html").read_text(encoding="utf-8"))
 
@@ -170,7 +170,7 @@ def test_height_and_weight_printed_in_the_header_when_known(tmp_path):
         exam["metadata"].update(patient_size=1.68, patient_weight=61.0)
         (data / f.name).write_text(json.dumps(exam), encoding="utf-8")
 
-    MedicalReportGenerator(identity_provider=_fake_pacs, qc_store=_all_checked(tmp_path / "qc")).generate(
+    MedicalReportGenerator(identity_provider=_fake_pacs, qc_store=_all_checked()).generate(
         [EXAM_ID], data, tmp_path / "out", lang="fr", config=_gui_config())
     text = _text((tmp_path / "out" / "Medical_report.html").read_text(encoding="utf-8"))
 

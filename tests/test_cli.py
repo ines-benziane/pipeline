@@ -149,12 +149,12 @@ E2E_BLOCKS = [(segment, method) for segment in ("legs", "thighs") for method in 
 def _qc_store_in(monkeypatch, store):
     """The CLI builds its report generator with the default QC store: make that default `store`."""
     from adapters import medical_report_generator as mrg
-    monkeypatch.setattr(mrg, "FileQCReviewStore", lambda: store)
+    monkeypatch.setattr(mrg, "FileQCReviewStore", lambda **kwargs: store)
 
 
 def test_report_generates_the_pdf(run, tmp_path, monkeypatch):
     """Integration: CLI 'report' -> medical_report -> PDF, with the default report config."""
-    _qc_store_in(monkeypatch, store_with_validated(tmp_path / "qc", "E2E001", E2E_BLOCKS))
+    _qc_store_in(monkeypatch, store_with_validated("E2E001", E2E_BLOCKS))
     result = run("report", "--exam-id", "E2E001", "--data-dir", str(FIXTURES / "report"),
                  "--output-dir", str(tmp_path), "--lang", "fr")
 
@@ -163,7 +163,7 @@ def test_report_generates_the_pdf(run, tmp_path, monkeypatch):
 
 
 def test_report_without_validated_qc_is_a_clean_error(run, tmp_path, monkeypatch):
-    _qc_store_in(monkeypatch, store_with_validated(tmp_path / "qc", "E2E001", []))
+    _qc_store_in(monkeypatch, store_with_validated("E2E001", []))
     result = run("report", "--exam-id", "E2E001", "--data-dir", str(FIXTURES / "report"),
                  "--output-dir", str(tmp_path), "--lang", "fr")
 
