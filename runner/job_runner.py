@@ -3,7 +3,6 @@ If SUCCESS : save the final result file (JSON file used by medical_report).
 If any exception raised : job's state becomes FAILED --Later : and the crash mode is activated. 
 """
 
-import shutil
 import logging
 import json
 from pathlib import Path
@@ -81,7 +80,13 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
         root_logger.removeHandler(handler)
         root_logger.setLevel(previous_level)
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy(result.results, RESULT_DIR / result.results.name) #results given by method (ex json_output)
+    text = result.results.read_text(encoding="utf-8")
+    data = json.loads(text)
+    data["metadata"]["job_id"] = job.job_id
+    text = json.dumps(data, indent=2, ensure_ascii=False)
+    destination = RESULT_DIR / result.results.name
+    destination.write_text(text, encoding="utf-8")
+
     if result.auto_valid: #not implemented yet, auto-valid=yes
         job.state = JobState.RESULTS_READY
     else :

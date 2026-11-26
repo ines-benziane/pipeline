@@ -17,7 +17,7 @@ class NotAutoValidMethod(Method):
 
     def run(self, ctx):
         output = Path(ctx.workdir) / "not_auto_valid.json"
-        output.write_text("{}", encoding="utf-8")
+        output.write_text('{"metadata": {}}', encoding="utf-8")
         return Result(
             results=output,
             auto_valid=False,

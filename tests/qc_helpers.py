@@ -17,11 +17,13 @@ from runner.qc_review import (
 
 
 def validated_qc(exam_id, segment, method, map_decision=MapDecision.COMPLETE, map_reason=None,
-                 seg_decision=SegmentationDecision.ACCEPTED, seg_reason=None):
-    """A validated QC of one block; by default everything passes (the section appears)."""
+                 seg_decision=SegmentationDecision.ACCEPTED, seg_reason=None, job_id=None):
+    """A validated QC of one block; by default everything passes (the section appears).
+    By default it checks the run "<exam_id>-job", the job_id the test results carry."""
     return QCReview(
         qc_id=f"{exam_id}-{segment}-{method}", exam_id=exam_id, segment=segment, method=method,
-        biomarker="FF" if method == "dixon3pt" else "T2", job_id=f"{exam_id}-job", status=ReviewStatus.VALIDATED,
+        biomarker="FF" if method == "dixon3pt" else "T2", job_id=job_id or f"{exam_id}-job",
+        status=ReviewStatus.VALIDATED,
         author="test", started_at=datetime(2026, 11, 26, 9), rules_version="v1",
         map=MapCheck(map_decision, map_reason, ""),
         segmentation=SegmentationCheck(ErrorCounts(0, 0, 0), Grade.GOOD, seg_decision, seg_reason, "", ()),

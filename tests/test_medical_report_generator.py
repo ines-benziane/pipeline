@@ -9,13 +9,16 @@ from runner.qc_review import MapDecision, SegmentationDecision
 from runner.report_generator import NoPDFGeneratedError, NoSectionAfterQCError
 
 
-def _exam(exam_id, segment, method, date="2026-01-12"):
-    return SimpleNamespace(metadata=SimpleNamespace(exam_id=exam_id, segment=segment, method=method, exam_date=date))
+def _exam(exam_id, segment, method, date="2026-01-12", job_id="default"):
+    """Results of one block; by default produced by the run "<exam_id>-job", the one validated_qc checks."""
+    job_id = f"{exam_id}-job" if job_id == "default" else job_id
+    return SimpleNamespace(metadata=SimpleNamespace(exam_id=exam_id, segment=segment, method=method,
+                                                    exam_date=date, job_id=job_id))
 
 
-def _section(segment, method, antecedents=()):
+def _section(segment, method, antecedents=(), job_id="default"):
     """What get_exam returns for one section: the exam of the section and its antecedents."""
-    return SimpleNamespace(section_name=f"{segment}_{method}", exam=_exam("exam_test", segment, method),
+    return SimpleNamespace(section_name=f"{segment}_{method}", exam=_exam("exam_test", segment, method, job_id=job_id),
                            antecedents=list(antecedents))
 
 
@@ -114,6 +117,28 @@ def test_no_report_when_no_section_passes_the_qc(tmp_path, monkeypatch, pdf_inpu
         _generate(tmp_path, monkeypatch, [_section("thighs", "dixon3pt")], store_with_validated(tmp_path / "qc", "x", []))
 
     assert "sections" not in pdf_input   # create_pdf never called
+
+
+def test_qc_of_an_earlier_run_does_not_cover_rerun_results(tmp_path, monkeypatch, pdf_input):
+    """The block was checked, then run again: the results in the pool are the new run's, nobody checked them."""
+    sections = [_section("thighs", "dixon3pt"), _section("legs", "dixon3pt", job_id="exam_test-rerun")]
+    store = _checked(tmp_path)
+    store.save(validated_qc("exam_test", "legs", "dixon3pt"))   # checks "exam_test-job", the earlier run
+
+    _generate(tmp_path, monkeypatch, sections, store)
+
+    assert [s.section_name for s in pdf_input["sections"]] == ["thighs_dixon3pt"]
+
+
+def test_results_written_before_job_id_existed_are_removed(tmp_path, monkeypatch, pdf_input):
+    """No job_id in the results: nothing proves a QC was made on them."""
+    sections = [_section("thighs", "dixon3pt"), _section("legs", "dixon3pt", job_id=None)]
+    store = _checked(tmp_path)
+    store.save(validated_qc("exam_test", "legs", "dixon3pt"))
+
+    _generate(tmp_path, monkeypatch, sections, store)
+
+    assert [s.section_name for s in pdf_input["sections"]] == ["thighs_dixon3pt"]
 
 
 def test_antecedent_without_validated_qc_is_left_out_of_the_comparison(tmp_path, monkeypatch, pdf_input):

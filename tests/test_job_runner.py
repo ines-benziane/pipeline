@@ -1,5 +1,6 @@
 """run_job: drives one job through a method and records its state."""
 
+import json
 import logging
 from pathlib import Path
 
@@ -22,7 +23,7 @@ class RecordingMethod(Method):
 
     def _result(self, workdir):
         output = Path(workdir) / "recording_result.json"
-        output.write_text("{}", encoding="utf-8")
+        output.write_text('{"metadata": {}}', encoding="utf-8")
         return Result(results=output, auto_valid=True, provenance={"name": self.name})
 
     def run(self, ctx):
@@ -59,6 +60,16 @@ def test_success_copies_result_and_marks_ready(isolated_store, tmp_path):
     assert job.state is JobState.RESULTS_READY
     assert (isolated_store / "recording_result.json").exists()
     assert job_store.load(job.job_id).state is JobState.RESULTS_READY
+
+
+def test_result_in_the_pool_says_which_run_produced_it(isolated_store, tmp_path):
+    """A rerun overwrites the result file: the job_id inside it tells the report which run it shows."""
+    first = run_job(_job(), tmp_path / "out")
+    second = run_job(_job(), tmp_path / "out")
+
+    data = json.loads((isolated_store / "recording_result.json").read_text(encoding="utf-8"))
+    assert first.job_id != second.job_id
+    assert data["metadata"]["job_id"] == second.job_id
 
 
 def test_qc_checkpoint_suspends_and_records_stage(isolated_store, tmp_path):

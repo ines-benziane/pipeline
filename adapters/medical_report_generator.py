@@ -41,9 +41,11 @@ class MedicalReportGenerator(ReportGenerator):
 
         return pdf_path
 
-    def _qc_allows(self, exam_id, segment, method) -> bool:
-        """True if the QC that counts for this block lets its section appear in the report."""
+    def _qc_allows(self, exam_id, segment, method, job_id) -> bool:
+        """True if the QC that counts for this block lets its section appear in the report.
+        Only the QCs of the run that produced these results (same job_id) count."""
         qcs = self.qc_store.list_for_block(exam_id, segment, method)
+        qcs = [qc for qc in qcs if qc.job_id == job_id]
         plan = section_plan(latest_validated(qcs))
         return plan.fate is SectionFate.SHOWN
     
@@ -54,13 +56,13 @@ class MedicalReportGenerator(ReportGenerator):
         removed = []
         for section in sections:
             meta = section.exam.metadata
-            if not self._qc_allows(meta.exam_id, meta.segment, meta.method):
+            if not self._qc_allows(meta.exam_id, meta.segment, meta.method, meta.job_id):
                 removed.append(section.section_name)
                 continue
             antecedents = []
             for antecedent in section.antecedents:
                 ant_meta = antecedent.metadata
-                if self._qc_allows(ant_meta.exam_id, ant_meta.segment, ant_meta.method):
+                if self._qc_allows(ant_meta.exam_id, ant_meta.segment, ant_meta.method, ant_meta.job_id):
                     antecedents.append(antecedent)
             section.antecedents = antecedents
             kept.append(section)

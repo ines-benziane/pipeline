@@ -30,7 +30,7 @@ class FakeMethod(Method):
         FakeMethod.last_call = {"exam_id": ctx.exam_id, "segment": ctx.segment, "series": ctx.series,
                                 "params": ctx.params, "date": ctx.exam_date, "qc": ctx.qc}
         output = Path(ctx.workdir) / "fake_result.json"
-        output.write_text("{}", encoding="utf-8")
+        output.write_text('{"metadata": {}}', encoding="utf-8")
         return Result(results=output, auto_valid=True, provenance={"name": self.name})
 
     def handle_checkpoint(self, *, name, workdir, segment, exam_id, qc, qc_dir=None,
