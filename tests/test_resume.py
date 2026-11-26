@@ -63,6 +63,17 @@ def test_resume_with_action_reruns_from_scratch(suspended_job, tmp_path):
     assert job.checkpoint is None
 
 
+def test_resume_with_action_is_a_new_run_and_keeps_the_earlier_one(suspended_job, tmp_path):
+    """A correction gives new results: they get their own job_id and folders, so a QC of the earlier run
+    can't cover them and the earlier run stays as it was."""
+    job = resume_pipeline(suspended_job.job_id, tmp_path / "out", "yes", qc=False, action="global-swap")
+
+    assert job.job_id != suspended_job.job_id
+    assert Path(job.qc_dir) != tmp_path / "qc"
+    earlier = job_store.load(suspended_job.job_id)
+    assert (earlier.state, earlier.checkpoint) == (JobState.SUSPENDED, "stage1")
+
+
 def test_resume_keeps_the_original_qc_dir(suspended_job, tmp_path):
     """QC artifacts of the first run and of the resume must land in the same bundle."""
     job = resume_pipeline(suspended_job.job_id, tmp_path / "out", "yes", qc=True)
