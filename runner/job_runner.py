@@ -80,12 +80,14 @@ def run_job(job, output_dir, debug=False, decision=None, action=None) :
         root_logger.removeHandler(handler)
         root_logger.setLevel(previous_level)
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
-    text = result.results.read_text(encoding="utf-8")
+    run_results = result.results                            # original, kept in the run folder
+    current_results = RESULT_DIR / run_results.name         # current version of the block, read by the report
+    text = run_results.read_text(encoding="utf-8")
     data = json.loads(text)
     data["metadata"]["job_id"] = job.job_id
     text = json.dumps(data, indent=2, ensure_ascii=False)
-    destination = RESULT_DIR / result.results.name
-    destination.write_text(text, encoding="utf-8")
+    run_results.write_text(text, encoding="utf-8")
+    current_results.write_text(text, encoding="utf-8")
 
     if result.auto_valid: #not implemented yet, auto-valid=yes
         job.state = JobState.RESULTS_READY

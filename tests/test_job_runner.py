@@ -67,9 +67,12 @@ def test_result_in_the_pool_says_which_run_produced_it(isolated_store, tmp_path)
     first = run_job(_job(), tmp_path / "out")
     second = run_job(_job(), tmp_path / "out")
 
-    data = json.loads((isolated_store / "recording_result.json").read_text(encoding="utf-8"))
+    current = json.loads((isolated_store / "recording_result.json").read_text(encoding="utf-8"))
     assert first.job_id != second.job_id
-    assert data["metadata"]["job_id"] == second.job_id
+    assert current["metadata"]["job_id"] == second.job_id
+    for job in (first, second):   # each run folder keeps its own results, with its job_id
+        kept = json.loads((job.workdir / "recording_result.json").read_text(encoding="utf-8"))
+        assert kept["metadata"]["job_id"] == job.job_id
 
 
 def test_qc_checkpoint_suspends_and_records_stage(isolated_store, tmp_path):
